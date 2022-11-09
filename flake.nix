@@ -20,32 +20,36 @@
     systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin"];
     imports = [
     ];
-    perSystem = {system, self', inputs', pkgs, ...}: {
-      devShells.default = let
-        fenixPkgs = fenix.packages.${system};
-        toolchain = fenixPkgs.stable;
-        rustToolchain = fenixPkgs.combine [
-          toolchain.cargo
-          toolchain.rustc
-          toolchain.rust-src
-          toolchain.rust-std
-          toolchain.clippy
-          toolchain.rustfmt
-          #targets.x86_64-unknown-linux-musl.stable.rust-std
-          # fenix.packages.x86_64-linux.targets.aarch64-unknown-linux-gnu.latest.rust-std
-        ];
+    perSystem = {system, self', inputs', pkgs, ...}: let
+      fenixPkgs = fenix.packages.${system};
+      toolchain = fenixPkgs.stable;
+      rustToolchain = fenixPkgs.combine [
+        toolchain.cargo
+        toolchain.rustc
+        toolchain.rust-src
+        toolchain.rust-std
+        toolchain.clippy
+        toolchain.rustfmt
+        #targets.x86_64-unknown-linux-musl.stable.rust-std
+        # fenix.packages.x86_64-linux.targets.aarch64-unknown-linux-gnu.latest.rust-std
+      ];
 
-        rustPlatform = (pkgs.makeRustPlatform {
-          cargo = rustToolchain;
-          rustc = rustToolchain;
-        });
-      in with pkgs; mkShell {
+      rustPlatform = (pkgs.makeRustPlatform {
+        cargo = rustToolchain;
+        rustc = rustToolchain;
+      });
+    in {
+      devShells.default = with pkgs; mkShell {
         RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library";
         buildInputs = [
           rustToolchain
           fenixPkgs.rust-analyzer
           just
         ];
+      };
+      packages.default = pkgs.callPackage ./pkg.nix { 
+        pkgSrc = self;
+        inherit rustPlatform; 
       };
     };
   }).config.flake;
