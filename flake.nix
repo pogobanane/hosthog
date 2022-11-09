@@ -39,7 +39,7 @@
           cargo = rustToolchain;
           rustc = rustToolchain;
         });
-      in with pkgs; mkShellNoCC {
+      in with pkgs; mkShell {
         RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library";
         buildInputs = [
           rustToolchain
