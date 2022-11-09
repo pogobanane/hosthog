@@ -1,5 +1,13 @@
 {
   description = "A very basic flake";
+
+  nixConfig.extra-substituters = [
+    "https://nix-community.cachix.org"
+  ];
+
+  nixConfig.extra-trusted-public-keys = [
+    "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+  ];
   
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
@@ -8,7 +16,7 @@
     flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
 
     fenix = {
-      url = "github:nix-community/fenix/b3e5ce9985c380c8fe1b9d14879a14b749d1af51";
+      url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
