@@ -34,9 +34,10 @@ A user wants to edit or extend a reservation.
   - is notified by host daemons about changes
   - exposes reservations via website (calendar?)
   - (pushes reservation events to client daemons)
+- optional: google calendar being filled with events by host daemons
   
 
-### Why no google sheets?
+### google sheets/calendar?
 
 Google docs APIs are built for GUI applications instead of for server daemons. 
 It wants to authenticate humans and not machines. 
@@ -48,3 +49,12 @@ Google: Learn about authentication & authorization: [Auth Overivew](https://deve
 > Go through the described steps to obtain an API key and enable the Sheets API for your account:
 > 
 > https://developers.google.com/workspace/guides/create-project
+
+Or is it badly suited?
+
+There are google service accounts however that can be created in your google cloud project -> IAM -> Service-accounts.
+These can be used for bot login.
+
+That gives you a credentials.json that the official libraries know how to use https://developers.google.com/sheets/api/quickstart/python
+
+And then use it with https://crates.io/crates/google-authz
