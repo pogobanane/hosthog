@@ -47,15 +47,18 @@
           just
         ];
       };
-      packages.default = pkgs.callPackage ./pkg.nix { 
-        pkgSrc = self;
-        inherit rustPlatform; 
+      packages.default = rustPlatform.buildRustPackage {
+        name = "hosthog";
+        src = self;
+        buildInputs = [];
+        cargoLock = {
+          lockFile = ./Cargo.lock;
+          outputHashes = {
+          };
+        };
       };
     };
   }).config.flake;
-
-    #packages.x86_64-linux.hello = nixpkgs.legacyPackages.x86_64-linux.hello;
-    #packages.x86_64-linux.default = self.packages.x86_64-linux.hello;
 }
 
 
