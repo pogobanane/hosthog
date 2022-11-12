@@ -18,9 +18,7 @@ struct StatusCommand {
 // this does not actually set the default value for the cli
 impl Default for StatusCommand {
     fn default() -> Self {
-        Self {
-            list: true,
-        }
+        Self { list: true }
     }
 }
 
@@ -48,22 +46,34 @@ fn show_status(cmd: &StatusCommand) {
     println!("status list: {}", cmd.list);
 }
 
+fn prog() -> Option<String> {
+    std::env::current_exe()
+        .ok()?
+        .file_name()?
+        .to_str()?
+        .to_owned()
+        .into()
+}
+
 fn main() {
     let cli = Cli::parse();
     match &cli.command {
-        Some(Commands::Status{ status }) => {
+        Some(Commands::Status { status }) => {
             show_status(status);
-        },
-        Some(Commands::Claim{ status }) => {
+        }
+        Some(Commands::Claim { status }) => {
             println!("claim list: {}", status.list);
-        },
-        Some(Commands::Release{ status }) => {
+        }
+        Some(Commands::Release { status }) => {
             println!("release list: {}", status.list);
-        },
+        }
         None => {
             println!("print some global settings like link to calendar, spreadsheet or database");
             show_status(&StatusCommand::default());
+            println!(
+                "See more options with: {} help",
+                prog().expect("Your binary name looks very unexpected.")
+            );
         }
     };
 }
-
