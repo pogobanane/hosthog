@@ -2,10 +2,11 @@
 name = "hosthog"
 version = "0.1.0"
 edition = "2021"
+description = "announce which resources you need on collaboratively used linux hosts"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 sheets = "0.4"
-clap = "4"
+clap = { version = "4", features = [ "derive" ] }
 google-authz = "0.0.2"
