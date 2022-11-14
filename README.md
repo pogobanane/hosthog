@@ -20,6 +20,12 @@ A user wants to reserve hardware for a long running research project running til
 
 A user wants to edit or extend a reservation.
 
+A user wants to query, which users are online right now (`users`, running processes, ...)
+
+A user might want to use `hosthog` infrastructure to notify other users.
+
+An admin wants to leave a message to notify users of a host about notable nixos config changes. 
+
 ### Architcture
 
 - Per-host daemon/service
@@ -35,9 +41,31 @@ A user wants to edit or extend a reservation.
   - exposes reservations via website (calendar?)
   - (pushes reservation events to client daemons)
 - optional: google calendar being filled with events by host daemons
-  
 
-### google sheets/calendar?
+
+### Implementation
+
+Push notifications in console: 
+
+- pseudo terminals: sudo wall
+- tmux sessions: tmux display-popup  
+  ```
+  # for each user:
+  tmux lsc
+  tmux display-popup -c /dev/pts/0 "echo message && read"
+  ```
+- screen: receives walls
+- xrdp: ?
+- vscode remote plugin: ?
+
+Message of the day:
+
+is not displayed in tmux
+
+
+#### google sheets/calendar?
+
+Google api client: either rust impls (see Cargo.toml) or some cli tool like [gcalcli](https://github.com/insanum/gcalcli).
 
 Google docs APIs are built for GUI applications instead of for server daemons. 
 It wants to authenticate humans and not machines. 
