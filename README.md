@@ -86,3 +86,11 @@ These can be used for bot login.
 That gives you a credentials.json that the official libraries know how to use https://developers.google.com/sheets/api/quickstart/python
 
 And then use it with https://crates.io/crates/google-authz
+
+#### Notes
+
+notifications in x:
+
+`DBUS_SESSION_BUS_ADDRESS=/run/user/1000/bus notify-send 'test message'`
+
+https://discourse.nixos.org/t/desktop-notifications-from-systemd-service/17672/6
