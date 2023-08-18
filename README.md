@@ -1,6 +1,10 @@
 # hosthog
 announce which resources you need on collaboratively used linux hosts
 
+# Status
+
+in development/stale, is not even a prototype
+
 # Design decisions
 
 ### Use-cases
