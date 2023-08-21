@@ -67,9 +67,22 @@ enum Commands {
     }
 }
 
+use serde::{Serialize, Deserialize};
+#[derive(Serialize, Deserialize, Debug)]
+struct Claim {
+    timeout: String,
+    soft_timeout: Option<String>,
+    exclusive: bool,
+}
+
 fn show_status(cmd: StatusCommand) {
     println!("Showing status.");
     println!("status list: {}", cmd.list);
+    let claim = Claim { timeout: String::from("1h"), soft_timeout: None, exclusive: false };
+    let json = serde_json::to_string(&claim).unwrap();
+    println!("{}", json);
+    let claim: Claim = serde_json::from_str(&json).unwrap();
+    println!("{:?}", claim);
 }
 
 fn prog() -> Option<String> {
