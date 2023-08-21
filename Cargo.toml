@@ -13,3 +13,5 @@ google-authz = "0.0.2"
 dateparser = "0.2"
 duration-str = "0.5"
 chrono = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

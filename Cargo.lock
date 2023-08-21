@@ -526,6 +526,8 @@ dependencies = [
  "dateparser",
  "duration-str",
  "google-authz",
+ "serde",
+ "serde_json",
  "sheets",
 ]
 
