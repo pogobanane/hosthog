@@ -98,3 +98,6 @@ notifications in x:
 `DBUS_SESSION_BUS_ADDRESS=/run/user/1000/bus notify-send 'test message'`
 
 https://discourse.nixos.org/t/desktop-notifications-from-systemd-service/17672/6
+
+detecting vscode users: 
+joerg      94310  0.0  0.0   2888   724 ?        Ss   15:54   0:00 sh /home/dimitra/.vscode-server/bin/6261075646f055b99068d3688932416f2346dd3b/bin/code-server
