@@ -10,3 +10,6 @@ description = "announce which resources you need on collaboratively used linux h
 sheets = "0.4"
 clap = { version = "4", features = [ "derive" ] }
 google-authz = "0.0.2"
+dateparser = "0.2"
+duration-str = "0.5"
+chrono = "0.4"
