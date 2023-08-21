@@ -1,5 +1,6 @@
 use clap::{Args, Parser, Subcommand};
 use std::process::Command;
+use chrono::prelude::*;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -30,10 +31,16 @@ enum Commands {
         #[command(flatten)]
         status: StatusCommand,
     },
-    /// claim a resource
+    /// Claim a resource. Fails if already claimed exclusively.
     Claim {
-        #[command(flatten)]
-        status: StatusCommand,
+        /// Timeout (hard): after this time the claim will be removed
+        timeout: String,
+        /// Optional timeout: will not remove the claim, but will be shown in the status
+        #[arg(short, long)]
+        soft_timeout: Option<String>,
+        /// Claim explclusive access. Other new claims will not be allowed.
+        #[arg(short, long)]
+        exclusive: bool,
     },
     /// prematurely release a claim
     Release {
@@ -100,14 +107,38 @@ fn do_post(mut message: Vec<String>) {
     run(&message);
 }
 
+fn parse_timeout(timeout: &str) -> DateTime<Local> {
+
+    let now = DateTime::from(Local::now());
+
+    // try to parse as duration
+    match duration_str::parse(timeout) {
+        Ok(parsed) => {
+            return now + chrono::Duration::from_std(parsed).unwrap();
+        },
+        Err(e) => {
+            println!("error parsing timeout as duration: {}. Trying again as absolute datetime.", e);
+            // try to parse as datetime
+            match dateparser::parse(timeout) {
+                Ok(parsed) => {
+                    return DateTime::from(parsed);
+                },
+                Err(e) => println!("error parsing timeout as date: {}", e)
+            };
+        }
+    }
+
+    panic!("proper error handling");
+}
+
 fn main() {
     let cli = Cli::parse();
     match cli.command {
         Some(Commands::Status { status }) => {
             show_status(status);
         }
-        Some(Commands::Claim { status }) => {
-            println!("claim list: {}", status.list);
+        Some(Commands::Claim { timeout, .. }) => {
+            println!("claim until {}", parse_timeout(&timeout));
         }
         Some(Commands::Release { status }) => {
             println!("release list: {}", status.list);
