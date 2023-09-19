@@ -1,6 +1,8 @@
 use clap::{Args, Parser, Subcommand};
 use std::process::Command;
 use chrono::prelude::*;
+use libc;
+mod hog;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -46,6 +48,13 @@ enum Commands {
     Release {
         #[command(flatten)]
         status: StatusCommand,
+    },
+    /// Hog the entire host (others will hate you)
+    Hog {
+        /// Block ssh login for all users except the ones specified here (default: your user and
+        /// root). Specify -u multiple times to add more users.
+        #[arg(short, long)]
+        users: Vec<String>,
     },
     /// post a message to all logged in users
     ///
@@ -120,6 +129,28 @@ fn do_post(mut message: Vec<String>) {
     run(&message);
 }
 
+fn do_hog(mut users: Vec<String>) {
+    println!("hog users:");
+    if users.len() == 0 {
+        users.push(String::from("root"));
+        let me = unsafe {
+            let cstr = libc::getlogin();
+            if cstr.is_null() {
+                panic!("no login name found");
+            }
+            std::str::from_utf8_unchecked(std::slice::from_raw_parts(cstr as *const u8, libc::strlen(cstr)+1))
+        }.to_string();
+
+        users.push(me);
+    }
+    users.as_slice().into_iter().for_each(|i| print!("{} ", i));
+    println!("");
+    hog::hog_ssh(users);
+    // let mut command = vec![String::from("pkill"), String::from("-u")];
+    // command.extend(users);
+    // run(&command);
+}
+
 fn parse_timeout(timeout: &str) -> DateTime<Local> {
 
     let now = DateTime::from(Local::now());
@@ -156,6 +187,7 @@ fn main() {
         Some(Commands::Release { status }) => {
             println!("release list: {}", status.list);
         }
+        Some(Commands::Hog{ users }) => do_hog(users),
         Some(Commands::Post{ message }) => do_post(message),
         None => {
             println!("print some global settings like link to calendar, spreadsheet or database");

@@ -49,7 +49,7 @@ An admin wants to leave a message to notify users of a host about notable nixos 
 
 ### Implementation
 
-Push notifications in console: 
+#### Push notifications in console: 
 
 - pseudo terminals: sudo wall
 - tmux sessions: tmux display-popup  
@@ -65,6 +65,19 @@ Push notifications in console:
 Message of the day:
 
 is not displayed in tmux
+
+
+#### Locking down a host (hogging)
+
+`hosthog hog`
+
+- only allowed when holding an exclusive claim
+- has a global setting: AuthorizedKeysFile. Specifies the location of said files (see man sshd\_config).
+- bind-mounts empty files over all users except root and the current one
+- has optional argument to allow other user sets
+- keeps disk state about which mounts it has active
+- has optional arguemnt to unhog
+- unhogs automatically, once the exclusive claim expires
 
 
 #### google sheets/calendar?
