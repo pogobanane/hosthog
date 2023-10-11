@@ -132,7 +132,7 @@ fn do_hog(mut users: Vec<String>, state: &mut diskstate::DiskState) {
             if cstr.is_null() {
                 panic!("no login name found");
             }
-            std::str::from_utf8_unchecked(std::slice::from_raw_parts(cstr as *const u8, libc::strlen(cstr)+1))
+            std::str::from_utf8_unchecked(std::slice::from_raw_parts(cstr as *const u8, libc::strlen(cstr)))
         }.to_string();
 
         users.push(me);
