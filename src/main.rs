@@ -2,7 +2,9 @@ use clap::{Args, Parser, Subcommand};
 use std::process::Command;
 use chrono::prelude::*;
 use libc;
+
 mod hog;
+mod diskstate;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -76,21 +78,13 @@ enum Commands {
     }
 }
 
-use serde::{Serialize, Deserialize};
-#[derive(Serialize, Deserialize, Debug)]
-struct Claim {
-    timeout: String,
-    soft_timeout: Option<String>,
-    exclusive: bool,
-}
-
 fn show_status(cmd: StatusCommand) {
     println!("Showing status.");
     println!("status list: {}", cmd.list);
-    let claim = Claim { timeout: String::from("1h"), soft_timeout: None, exclusive: false };
+    let claim = diskstate::Claim { timeout: String::from("1h"), soft_timeout: None, exclusive: false };
     let json = serde_json::to_string(&claim).unwrap();
     println!("{}", json);
-    let claim: Claim = serde_json::from_str(&json).unwrap();
+    let claim: diskstate::Claim = serde_json::from_str(&json).unwrap();
     println!("{:?}", claim);
 }
 
@@ -129,7 +123,7 @@ fn do_post(mut message: Vec<String>) {
     run(&message);
 }
 
-fn do_hog(mut users: Vec<String>) {
+fn do_hog(mut users: Vec<String>, state: &mut diskstate::DiskState) {
     println!("hog users:");
     if users.len() == 0 {
         users.push(String::from("root"));
@@ -145,7 +139,7 @@ fn do_hog(mut users: Vec<String>) {
     }
     users.as_slice().into_iter().for_each(|i| print!("{} ", i));
     println!("");
-    hog::hog_ssh(users);
+    hog::hog_ssh(users, state);
     // let mut command = vec![String::from("pkill"), String::from("-u")];
     // command.extend(users);
     // run(&command);
@@ -177,6 +171,11 @@ fn parse_timeout(timeout: &str) -> DateTime<Local> {
 
 fn main() {
     let cli = Cli::parse();
+
+    let _original_state = diskstate::load();
+    let mut state = diskstate::load();
+
+
     match cli.command {
         Some(Commands::Status { status }) => {
             show_status(status);
@@ -187,7 +186,7 @@ fn main() {
         Some(Commands::Release { status }) => {
             println!("release list: {}", status.list);
         }
-        Some(Commands::Hog{ users }) => do_hog(users),
+        Some(Commands::Hog{ users }) => do_hog(users, &mut state),
         Some(Commands::Post{ message }) => do_post(message),
         None => {
             println!("print some global settings like link to calendar, spreadsheet or database");
