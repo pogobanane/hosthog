@@ -3,10 +3,8 @@ use crate::diskstate;
 
 fn overmount(file: &str) -> Result<(), ()> {
     if !std::path::Path::new(file).is_file() {
-        println!("warn: overmount: file does not exist: {}", file);
         return Err(());
     }
-    println!("overmount: {}", file);
     nix::mount::mount(
         Some("/dev/null"), 
         file,
@@ -15,10 +13,10 @@ fn overmount(file: &str) -> Result<(), ()> {
         None::<&str>
     ).expect("bind mount failed");
 
-    println!("ok");
     return Ok(());
 }
 
+#[derive(Debug)]
 pub struct User {
     pub name: String,
     pub home: String,
@@ -51,12 +49,11 @@ fn list_users() -> Vec<User> {
 }
 
 pub fn hog_ssh(exclude_users: Vec<String>, state: &mut diskstate::DiskState) {
-    let users = list_users().into_iter().filter(|u| !exclude_users.contains(&u.name)).collect::<Vec<_>>();
+    let users = list_users().into_iter().filter(|u| !exclude_users.contains(&u.name)).collect::<Vec<User>>();
     let auth_key_files = diskstate::expand_authorized_keys_file(&state.settings, users);
-    println!("overmounts: {:?}", auth_key_files);
     for file in auth_key_files {
         match overmount(&file) {
-            Ok(_) => { println!("ok"); state.overmounts.push(file); },
+            Ok(_) => { state.overmounts.push(file); },
             Err(_) => { },
         }
     }
