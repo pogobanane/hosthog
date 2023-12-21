@@ -47,10 +47,7 @@ enum Commands {
         exclusive: bool,
     },
     /// prematurely release a claim
-    Release {
-        #[command(flatten)]
-        status: StatusCommand,
-    },
+    Release {},
     /// Hog the entire host (others will hate you)
     Hog {
         /// Block ssh login for all users except the ones specified here (default: your user and
@@ -145,6 +142,10 @@ fn do_hog(mut users: Vec<String>, state: &mut diskstate::DiskState) {
     // run(&command);
 }
 
+fn do_release(state: &mut diskstate::DiskState) {
+    hog::release_ssh(state);
+}
+
 fn parse_timeout(timeout: &str) -> DateTime<Local> {
 
     let now = DateTime::from(Local::now());
@@ -183,8 +184,8 @@ fn main() {
         Some(Commands::Claim { timeout, .. }) => {
             println!("claim until {}", parse_timeout(&timeout));
         }
-        Some(Commands::Release { status }) => {
-            println!("release list: {}", status.list);
+        Some(Commands::Release { }) => {
+            do_release(&mut state);
         }
         Some(Commands::Hog{ users }) => do_hog(users, &mut state),
         Some(Commands::Post{ message }) => do_post(message),
@@ -198,4 +199,6 @@ fn main() {
         }
         _ => unimplemented!()
     };
+
+    diskstate::store(&state);
 }
