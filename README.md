@@ -1,11 +1,34 @@
 # hosthog
+
 announce which resources you need on collaboratively used linux hosts
 
-# Status
+```
+Usage: hosthog [COMMAND]
 
-in development/stale, is not even a prototype
+Commands:
+  status   show current claims
+  claim    Claim a resource. Fails if already claimed exclusively
+  release  prematurely release a claim
+  hog      Hog the entire host (others will hate you)
+  post     post a message to all logged in users
+  users    List all logged in users
+  help     Print this message or the help of the given subcommand(s)
 
-# Design decisions
+Options:
+  -h, --help     Print help information
+  -V, --version  Print version information
+```
+
+## Implementation status
+
+- `hog` clears all AuthorizedKeysFiles via bind-mounting /dev/null
+- `release` restores all AuthorizedKeysFiles by unmounting bind-mounts
+- `users` lists active users via `who`, and `netstat`
+- `hosthog post` sends a message via `wall`
+- `claim` is unimplemented
+
+
+# Design decisions and future work
 
 ### Use-cases
 
@@ -79,6 +102,7 @@ is not displayed in tmux
 - Done: has subcommand to unhog/release
 - unhogs automatically, once the exclusive claim expires
 
+Bind mounting vs re-linking AuthorizedKeysFiles: Moving important config files like that seems unsafe. Relinking them on nixos is bad, because config managers (like nixos) may not always overwrite such a change. Bind-mounting resets on reboot, ensuring we never by accitdent lock someone out permanently.
 
 #### google sheets/calendar?
 
