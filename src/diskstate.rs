@@ -2,21 +2,21 @@ use serde::{Serialize, Deserialize};
 
 const STATE_PATH: &str = "/tmp/hosthog.json";
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Claim {
     pub timeout: String,
     pub soft_timeout: Option<String>,
     pub exclusive: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Settings {
     /// This should be the same as AuthorizedKeysFile in /etc/ssh/sshd_config (see man
     /// sshd_config)
     pub authorized_keys_file: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct DiskState {
     /// paths of all files that are bind-mounted to /dev/null
     pub overmounts: Vec<String>,
