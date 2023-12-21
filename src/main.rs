@@ -75,14 +75,9 @@ enum Commands {
     }
 }
 
-fn show_status(cmd: StatusCommand) {
+fn show_status(_cmd: StatusCommand, state: &diskstate::DiskState) {
     println!("Showing status.");
-    println!("status list: {}", cmd.list);
-    let claim = diskstate::Claim { timeout: String::from("1h"), soft_timeout: None, exclusive: false };
-    let json = serde_json::to_string(&claim).unwrap();
-    println!("{}", json);
-    let claim: diskstate::Claim = serde_json::from_str(&json).unwrap();
-    println!("{:?}", claim);
+    println!("{}", serde_yaml::to_string(&state).unwrap());
 }
 
 fn prog() -> Option<String> {
@@ -179,7 +174,7 @@ fn main() {
 
     match cli.command {
         Some(Commands::Status { status }) => {
-            show_status(status);
+            show_status(status, &mut state);
         }
         Some(Commands::Claim { timeout, .. }) => {
             println!("claim until {}", parse_timeout(&timeout));
@@ -191,7 +186,7 @@ fn main() {
         Some(Commands::Post{ message }) => do_post(message),
         None => {
             println!("print some global settings like link to calendar, spreadsheet or database");
-            show_status(StatusCommand::default());
+            show_status(StatusCommand::default(), &mut state);
             println!(
                 "See more options with: {} help",
                 prog().expect("Your binary name looks very unexpected.")
@@ -199,6 +194,9 @@ fn main() {
         }
         _ => unimplemented!()
     };
-
-    diskstate::store(&state);
+    
+    if _original_state != state {
+        // println!("state changed, storing");
+        diskstate::store(&state);
+    }
 }
