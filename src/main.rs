@@ -5,6 +5,7 @@ use libc;
 
 mod hog;
 mod diskstate;
+mod users;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -184,6 +185,9 @@ fn main() {
         }
         Some(Commands::Hog{ users }) => do_hog(users, &mut state),
         Some(Commands::Post{ message }) => do_post(message),
+        Some(Commands::Users { }) => {
+            users::do_list_users();
+        },
         None => {
             println!("print some global settings like link to calendar, spreadsheet or database");
             show_status(StatusCommand::default(), &mut state);

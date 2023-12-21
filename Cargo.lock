@@ -545,6 +545,7 @@ dependencies = [
  "duration-str",
  "google-authz",
  "libc",
+ "netstat",
  "nix",
  "serde",
  "serde_json",
@@ -854,6 +855,16 @@ dependencies = [
  "log",
  "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys 0.42.0",
+]
+
+[[package]]
+name = "netstat"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48b71f6e2443299ba97e8c834edcd4724be71da3a751b1be75d8b67022801bf3"
+dependencies = [
+ "bitflags 1.3.2",
+ "libc",
 ]
 
 [[package]]
