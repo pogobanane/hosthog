@@ -51,6 +51,7 @@ fn list_users() -> Vec<User> {
 pub fn hog_ssh(exclude_users: Vec<String>, state: &mut diskstate::DiskState) {
     let users = list_users().into_iter().filter(|u| !exclude_users.contains(&u.name)).collect::<Vec<User>>();
     let auth_key_files = diskstate::expand_authorized_keys_file(&state.settings, users);
+    let auth_key_files = auth_key_files.into_iter().filter(|f| !state.overmounts.contains(f)).collect::<Vec<String>>();
     for file in auth_key_files {
         match overmount(&file) {
             Ok(_) => { state.overmounts.push(file); },
@@ -64,4 +65,14 @@ pub fn hog_ssh(exclude_users: Vec<String>, state: &mut diskstate::DiskState) {
     // let mut command = vec![String::from("pkill"), String::from("-u")];
     // command.extend(users);
     // run(&command);
+}
+
+pub fn release_ssh(state: &mut diskstate::DiskState) {
+    println!("{:?}", state);
+    for file in &state.overmounts {
+        let path = std::path::Path::new(file);
+        nix::mount::umount(path).expect("umount failed");
+        println!("released {}", file);
+    }
+    state.overmounts.clear();
 }

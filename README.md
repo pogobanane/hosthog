@@ -72,11 +72,11 @@ is not displayed in tmux
 `hosthog hog`
 
 - only allowed when holding an exclusive claim
-- has a global setting: AuthorizedKeysFile. Specifies the location of said files (see man sshd\_config).
-- bind-mounts empty files over all users except root and the current one
-- has optional argument to allow other user sets
-- keeps disk state about which mounts it has active
-- has optional arguemnt to unhog
+- Done: has a global setting: AuthorizedKeysFile. Specifies the location of said files (see man sshd\_config).
+- Done: bind-mounts empty files over all users except root and the current one
+- Done: has optional argument to allow other user sets
+- Done: keeps disk state about which mounts it has active
+- Done: has subcommand to unhog/release
 - unhogs automatically, once the exclusive claim expires
 
 
