@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
 use chrono::prelude::*;
+use crate::users;
 
 const STATE_PATH: &str = "/tmp/hosthog.json";
 
@@ -41,6 +42,9 @@ pub fn load() -> DiskState {
 }
 
 pub fn store(state: &DiskState) {
+    if !users::is_root() {
+        panic!("must be root to update hosts hogging state");
+    }
     let json = serde_json::to_string(&state).unwrap();
     std::fs::write(STATE_PATH, json).expect("failed to write state file");
 }

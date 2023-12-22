@@ -1,7 +1,6 @@
 use clap::{Args, Parser, Subcommand};
 use std::process::Command;
 use chrono::prelude::*;
-use libc;
 
 mod hog;
 mod diskstate;
@@ -90,6 +89,16 @@ fn show_status_verbose(_cmd: StatusCommand, state: &diskstate::DiskState) {
 }
 
 fn show_status(_cmd: StatusCommand, state: &diskstate::DiskState) {
+    if state.overmounts.len() > 0 {
+        println!("");
+        println!("System is currently hogged!");
+        println!("The following ssh keys are temporarily disabled:");
+        for file in &state.overmounts {
+            println!(" - {}", file);
+        }
+        println!("");
+    }
+
     println!("Active claims:");
 
     println!("{:<13} {:<13} {}", "Remaning", "User", "Comment");
