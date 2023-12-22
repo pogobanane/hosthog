@@ -24,6 +24,7 @@ Options:
 - `hog` clears all AuthorizedKeysFiles via bind-mounting /dev/null
 - `release` restores all AuthorizedKeysFiles by unmounting bind-mounts
 - `users` lists active users via `who`, and `netstat`
-- `hosthog post` sends a message via `wall`
-- `claim` is unimplemented
+- `post` sends a message via `wall`
+- `claim` hosthog maintains a list of claims, but doesn't really do anything with it yet
+- `status` lists claims
 

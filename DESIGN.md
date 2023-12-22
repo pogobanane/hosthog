@@ -64,7 +64,7 @@ is not displayed in tmux
 
 `hosthog hog`
 
-- only allowed when holding an exclusive claim
+- Done: only allowed when holding an exclusive claim
 - Done: has a global setting: AuthorizedKeysFile. Specifies the location of said files (see man sshd\_config).
 - Done: bind-mounts empty files over all users except root and the current one
 - Done: has optional argument to allow other user sets
