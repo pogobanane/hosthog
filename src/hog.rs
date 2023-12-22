@@ -68,7 +68,6 @@ pub fn hog_ssh(exclude_users: Vec<String>, state: &mut diskstate::DiskState) {
 }
 
 pub fn release_ssh(state: &mut diskstate::DiskState) {
-    println!("{:?}", state);
     for file in &state.overmounts {
         let path = std::path::Path::new(file);
         nix::mount::umount(path).expect("umount failed");

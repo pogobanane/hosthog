@@ -1,6 +1,7 @@
 use crate::ClaimCommand;
 use crate::diskstate::{DiskState, Claim};
 use crate::parse_timeout;
+use crate::users;
 
 pub fn do_claim(claim: &ClaimCommand, state: &mut DiskState) {
     let timeout = parse_timeout(&claim.timeout);
@@ -12,6 +13,8 @@ pub fn do_claim(claim: &ClaimCommand, state: &mut DiskState) {
         timeout,
         soft_timeout,
         exclusive: claim.exclusive,
+        user: users::my_username(),
+        comment: claim.comment.join(" "),
     };
 
     state.claims.push(claim.clone());

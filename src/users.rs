@@ -80,3 +80,14 @@ fn list_all_pids() -> Vec<u32> {
     }
     return pids;
 }
+
+pub fn my_username() -> String {
+    let me = unsafe {
+        let cstr = libc::getlogin();
+        if cstr.is_null() {
+            panic!("no login name found");
+        }
+        std::str::from_utf8_unchecked(std::slice::from_raw_parts(cstr as *const u8, libc::strlen(cstr)))
+    }.to_string();
+    return me;
+}

@@ -19,14 +19,14 @@ struct Cli {
 #[derive(Args)]
 struct StatusCommand {
     #[arg(short, long)]
-    /// help string
-    list: bool,
+    /// More detailed status
+    verbose: bool,
 }
 
 // this does not actually set the default value for the cli
 impl Default for StatusCommand {
     fn default() -> Self {
-        Self { list: true }
+        Self { verbose: false}
     }
 }
 
@@ -34,6 +34,8 @@ impl Default for StatusCommand {
 pub struct ClaimCommand {
     /// Timeout (hard): after this time the claim will be removed
     timeout: String,
+    /// Optional message/note
+    comment: Vec<String>,
     /// Optional timeout: will not remove the claim, but will be shown in the status
     #[arg(short, long)]
     soft_timeout: Option<String>,
@@ -54,7 +56,7 @@ enum Commands {
         #[command(flatten)]
         claim: ClaimCommand,
     },
-    /// prematurely release a claim
+    /// prematurely release a claim (removes all of your claims)
     Release {},
     /// Hog the entire host (others will hate you)
     Hog {
@@ -83,9 +85,37 @@ enum Commands {
     }
 }
 
-fn show_status(_cmd: StatusCommand, state: &diskstate::DiskState) {
-    println!("Showing status.");
+fn show_status_verbose(_cmd: StatusCommand, state: &diskstate::DiskState) {
     println!("{}", serde_yaml::to_string(&state).unwrap());
+}
+
+fn show_status(_cmd: StatusCommand, state: &diskstate::DiskState) {
+    println!("Active claims:");
+
+    println!("{:<13} {:<13} {}", "Remaning", "User", "Comment");
+    let now = DateTime::from(Local::now());
+    for claim in &state.claims {
+        // format timeout duration
+        let duration = claim.timeout - now;
+        let duration = format_timeout(duration);
+
+        // replace duration with soft duration if applicable
+        let duration = match claim.soft_timeout {
+            Some(soft_timeout) => {
+                let duration = soft_timeout - now;
+                let duration = format_timeout(duration);
+                format!("{} (soft)", duration)
+            },
+            None => duration,
+        };
+
+        let comment = match claim.exclusive {
+            true => format!("(exclusive) {}", claim.comment),
+            false => claim.comment.clone(),
+        };
+
+        println!("{:<13} {:<13} {}", duration, claim.user, comment);
+    }
 }
 
 fn prog() -> Option<String> {
@@ -124,17 +154,13 @@ fn do_post(mut message: Vec<String>) {
 }
 
 fn do_hog(mut users: Vec<String>, state: &mut diskstate::DiskState) {
+    let me = users::my_username();
+    if !state.claims.iter().any(|claim| claim.user == me && claim.exclusive) {
+        panic!("Hogging not allowed. Claim exclusive access first.");
+    }
     println!("hog users:");
     if users.len() == 0 {
         users.push(String::from("root"));
-        let me = unsafe {
-            let cstr = libc::getlogin();
-            if cstr.is_null() {
-                panic!("no login name found");
-            }
-            std::str::from_utf8_unchecked(std::slice::from_raw_parts(cstr as *const u8, libc::strlen(cstr)))
-        }.to_string();
-
         users.push(me);
     }
     users.as_slice().into_iter().for_each(|i| print!("{} ", i));
@@ -147,6 +173,9 @@ fn do_hog(mut users: Vec<String>, state: &mut diskstate::DiskState) {
 
 fn do_release(state: &mut diskstate::DiskState) {
     hog::release_ssh(state);
+    // delete claims of current user
+    let user = users::my_username();
+    state.claims.retain(|claim| claim.user != user);
 }
 
 fn parse_timeout(timeout: &str) -> DateTime<Local> {
@@ -173,15 +202,47 @@ fn parse_timeout(timeout: &str) -> DateTime<Local> {
     panic!("proper error handling");
 }
 
+fn format_timeout(duration: chrono::Duration) -> String {
+    // determine order of magnitude
+    let is_seconds = duration.num_seconds() < 60;
+    let is_minutes = duration.num_minutes() < 60;
+    let is_hours = duration.num_hours() < 24;
+    let is_days = duration.num_days() < 7;
+    let is_weeks = duration.num_weeks() < 4;
+
+    // format accurdingly
+    if is_seconds {
+        return format!("{}s", duration.num_seconds());
+    }
+    if is_minutes {
+        return format!("{}m", duration.num_minutes());
+    }
+    if is_hours {
+        return format!("{}h", duration.num_hours());
+    }
+    if is_days {
+        return format!("{}d", duration.num_days());
+    }
+    if is_weeks {
+        return format!("{}w", duration.num_weeks());
+    }
+
+    unreachable!();
+}
+
 fn main() {
     let cli = Cli::parse();
 
     let _original_state = diskstate::load();
     let mut state = diskstate::load();
+    diskstate::maintenance(&mut state);
 
     match cli.command {
-        Some(Commands::Status { status }) => {
+        Some(Commands::Status { status }) if !status.verbose => {
             show_status(status, &mut state);
+        }
+        Some(Commands::Status { status }) if status.verbose => {
+            show_status_verbose(status, &mut state);
         }
         Some(Commands::Claim { claim }) => {
             println!("claim");

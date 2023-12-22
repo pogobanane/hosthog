@@ -8,6 +8,8 @@ pub struct Claim {
     pub timeout: DateTime<Local>,
     pub soft_timeout: Option<DateTime<Local>>,
     pub exclusive: bool,
+    pub user: String,
+    pub comment: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -73,4 +75,16 @@ pub fn expand_authorized_keys_file(settings: &Settings, users: Vec<hog::User>) -
         }
     }
     return files;
+}
+
+/// remove all claims that have timed out
+pub fn maintenance(state: &mut DiskState) {
+    let now = Local::now();
+    let mut new_claims = vec![];
+    for claim in &state.claims {
+        if claim.timeout > now {
+            new_claims.push(claim.clone());
+        }
+    }
+    state.claims = new_claims;
 }
