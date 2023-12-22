@@ -1,11 +1,12 @@
 use serde::{Serialize, Deserialize};
+use chrono::prelude::*;
 
 const STATE_PATH: &str = "/tmp/hosthog.json";
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Claim {
-    pub timeout: String,
-    pub soft_timeout: Option<String>,
+    pub timeout: DateTime<Local>,
+    pub soft_timeout: Option<DateTime<Local>>,
     pub exclusive: bool,
 }
 
