@@ -6,6 +6,7 @@ use libc;
 mod hog;
 mod diskstate;
 mod users;
+mod claims;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -29,6 +30,18 @@ impl Default for StatusCommand {
     }
 }
 
+#[derive(Args)]
+pub struct ClaimCommand {
+    /// Timeout (hard): after this time the claim will be removed
+    timeout: String,
+    /// Optional timeout: will not remove the claim, but will be shown in the status
+    #[arg(short, long)]
+    soft_timeout: Option<String>,
+    /// Claim explclusive access. Other new claims will not be allowed.
+    #[arg(short, long)]
+    exclusive: bool,
+}
+
 #[derive(Subcommand)]
 enum Commands {
     /// show current claims
@@ -38,14 +51,8 @@ enum Commands {
     },
     /// Claim a resource. Fails if already claimed exclusively.
     Claim {
-        /// Timeout (hard): after this time the claim will be removed
-        timeout: String,
-        /// Optional timeout: will not remove the claim, but will be shown in the status
-        #[arg(short, long)]
-        soft_timeout: Option<String>,
-        /// Claim explclusive access. Other new claims will not be allowed.
-        #[arg(short, long)]
-        exclusive: bool,
+        #[command(flatten)]
+        claim: ClaimCommand,
     },
     /// prematurely release a claim
     Release {},
@@ -172,13 +179,14 @@ fn main() {
     let _original_state = diskstate::load();
     let mut state = diskstate::load();
 
-
     match cli.command {
         Some(Commands::Status { status }) => {
             show_status(status, &mut state);
         }
-        Some(Commands::Claim { timeout, .. }) => {
-            println!("claim until {}", parse_timeout(&timeout));
+        Some(Commands::Claim { claim }) => {
+            println!("claim");
+            claims::do_claim(&claim, &mut state); 
+            // println!("claim until {}", parse_timeout(&timeout));
         }
         Some(Commands::Release { }) => {
             do_release(&mut state);
