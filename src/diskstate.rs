@@ -2,7 +2,7 @@ use serde::{Serialize, Deserialize};
 use chrono::prelude::*;
 use crate::users;
 
-const STATE_PATH: &str = "/tmp/hosthog.json";
+const STATE_PATH: &str = "/var/lib/hosthog/hosthog.json";
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Claim {
