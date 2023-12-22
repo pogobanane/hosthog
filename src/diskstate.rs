@@ -46,6 +46,11 @@ pub fn store(state: &DiskState) {
         panic!("must be root to update hosts hogging state");
     }
     let json = serde_json::to_string(&state).unwrap();
+    // create parent directory if it does not exist
+    let parent = std::path::Path::new(STATE_PATH).parent().unwrap();
+    if !parent.is_dir() {
+        std::fs::create_dir_all(parent).expect("failed to create state directory");
+    }
     std::fs::write(STATE_PATH, json).expect("failed to write state file");
 }
 
