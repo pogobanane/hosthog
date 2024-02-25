@@ -267,7 +267,6 @@ fn main() {
             users::do_list_users();
         },
         None => {
-            println!("print some global settings like link to calendar, spreadsheet or database");
             show_status(StatusCommand::default(), &mut state);
             println!(
                 "See more options with: {} help",
