@@ -93,9 +93,13 @@ fn show_status(_cmd: StatusCommand, state: &diskstate::DiskState) {
         println!("");
         println!("System is currently hogged!");
         println!("The following ssh keys are temporarily disabled:");
-        for file in &state.overmounts {
-            println!(" - {}", file);
-        }
+        let active_overmounts = state.overmounts.iter().filter(|file| hog::is_overmounted(file)).collect::<Vec<&String>>().len();
+        // for file in &state.overmounts {
+        //     if hog::is_overmounted(file) {
+        //         active_overmounts += 1;
+        //     }
+        // }
+        println!("{} keys were disabled to hog, {} keys are still disabled", state.overmounts.len(), active_overmounts);
         println!("");
     }
 
