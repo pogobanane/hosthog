@@ -1,17 +1,20 @@
 use nix;
 use crate::diskstate;
 
-fn overmount(file: &str) -> Result<(), ()> {
+fn overmount(file: &str) -> Result<(), Option<nix::errno::Errno>> {
     if !std::path::Path::new(file).is_file() {
-        return Err(());
+        return Err(None);
     }
-    nix::mount::mount(
+    match nix::mount::mount(
         Some("/dev/null"), 
         file,
         None::<&str>, 
         nix::mount::MsFlags::MS_BIND, 
         None::<&str>
-    ).expect("bind mount failed");
+    ) {
+        Ok(_) => {},
+        Err(err) => { return Err(Some(err)); },
+    }
 
     return Ok(());
 }
@@ -50,16 +53,24 @@ fn list_users() -> Vec<User> {
 
 pub fn hog_ssh(exclude_users: Vec<String>, state: &mut diskstate::DiskState) {
     let users = list_users().into_iter().filter(|u| !exclude_users.contains(&u.name)).collect::<Vec<User>>();
-    let auth_key_files = diskstate::expand_authorized_keys_file(&state.settings, users);
-    let auth_key_files = auth_key_files.into_iter().filter(|f| !state.overmounts.contains(f)).collect::<Vec<String>>();
-    for file in auth_key_files {
+    let all_auth_key_files: Vec<String> = diskstate::expand_authorized_keys_file(&state.settings, users);
+    let all_files_len = all_auth_key_files.len();
+    let auth_key_files: Vec<String> = 
+        all_auth_key_files.into_iter()
+        // filter out files that we recorded as overmounted
+        .filter(|f| !state.overmounts.contains(f))
+        // filter out files that have an unknown overmount
+        .filter(|f| !is_overmounted(f)).collect();
+    let mut failed = 0;
+    for file in &auth_key_files {
         match overmount(&file) {
-            Ok(_) => { state.overmounts.push(file); },
-            Err(_) => { },
+            Ok(_) => { state.overmounts.push(file.clone()); },
+            Err(None) => { }, // ignore files that dont exist
+            Err(Some(_errno)) => { failed += 1; },
         }
     }
-    println!("overmounts: {:?}", state.overmounts);
-
+    // println!("overmounts: {:?}", state.overmounts);
+    println!("{} users locked out of ssh ({} skipped, {} failed)", auth_key_files.len(), all_files_len - auth_key_files.len(), failed);
 
 
     // let mut command = vec![String::from("pkill"), String::from("-u")];
@@ -70,8 +81,15 @@ pub fn hog_ssh(exclude_users: Vec<String>, state: &mut diskstate::DiskState) {
 pub fn release_ssh(state: &mut diskstate::DiskState) {
     for file in &state.overmounts {
         let path = std::path::Path::new(file);
-        nix::mount::umount(path).expect("umount failed");
-        println!("released {}", file);
+        match nix::mount::umount(path) {
+            Err(err) => println!("failed to release {}: {:?}", file, err),
+            Ok(_) => println!("released {}", file),
+        }
     }
     state.overmounts.clear();
+}
+
+fn is_overmounted(file: &str) -> bool {
+    let mounts = std::fs::read_to_string("/proc/mounts").expect("Cant read /proc/mounts");
+    return mounts.contains(file);
 }
