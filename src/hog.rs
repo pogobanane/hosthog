@@ -89,7 +89,7 @@ pub fn release_ssh(state: &mut diskstate::DiskState) {
     state.overmounts.clear();
 }
 
-fn is_overmounted(file: &str) -> bool {
+pub fn is_overmounted(file: &str) -> bool {
     let mounts = std::fs::read_to_string("/proc/mounts").expect("Cant read /proc/mounts");
     return mounts.contains(file);
 }
