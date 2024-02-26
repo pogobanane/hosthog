@@ -55,7 +55,7 @@ enum Commands {
         #[command(flatten)]
         claim: ClaimCommand,
     },
-    /// prematurely release a claim (removes all of your claims)
+    /// prematurely release a claim (removes all of your hogs and exclusive claims)
     Release {},
     /// Hog the entire host (others will hate you)
     Hog {
@@ -81,7 +81,11 @@ enum Commands {
     /// - xrdp sessions
     /// - vscode?
     Users {
-    }
+    },
+
+    #[command(hide(true))]
+    // Internal command used to trigger updating the list of claims and hogs
+    Maintenance {}
 }
 
 fn show_status_verbose(_cmd: StatusCommand, state: &diskstate::DiskState) {
@@ -105,7 +109,7 @@ fn show_status(_cmd: StatusCommand, state: &diskstate::DiskState) {
 
     println!("Active claims:");
 
-    println!("{:<13} {:<13} {}", "Remaning", "User", "Comment");
+    println!("{:<13} {:<13} {}", "Remaining", "User", "Comment");
     let now = DateTime::from(Local::now());
     for claim in &state.claims {
         // format timeout duration
@@ -166,31 +170,6 @@ fn do_post(mut message: Vec<String>) {
     run(&message);
 }
 
-fn do_hog(mut users: Vec<String>, state: &mut diskstate::DiskState) {
-    let me = users::my_username();
-    if !state.claims.iter().any(|claim| claim.user == me && claim.exclusive) {
-        panic!("Hogging not allowed. Claim exclusive access first.");
-    }
-    println!("hog users:");
-    if users.len() == 0 {
-        users.push(String::from("root"));
-        users.push(me);
-    }
-    users.as_slice().into_iter().for_each(|i| print!("{} ", i));
-    println!("");
-    hog::hog_ssh(users, state);
-    // let mut command = vec![String::from("pkill"), String::from("-u")];
-    // command.extend(users);
-    // run(&command);
-}
-
-fn do_release(state: &mut diskstate::DiskState) {
-    hog::release_ssh(state);
-    // delete claims of current user
-    let user = users::my_username();
-    state.claims.retain(|claim| claim.user != user);
-}
-
 fn parse_timeout(timeout: &str) -> DateTime<Local> {
 
     let now = DateTime::from(Local::now());
@@ -243,12 +222,20 @@ fn format_timeout(duration: chrono::Duration) -> String {
     unreachable!();
 }
 
+fn do_maintenance(mut state: &mut diskstate::DiskState) {
+    let mut needs_release = false;
+    diskstate::maintenance(&mut state, &mut needs_release);
+    if needs_release {
+        hog::do_release(&mut state);
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
 
     let _original_state = diskstate::load();
     let mut state = diskstate::load();
-    diskstate::maintenance(&mut state);
+    do_maintenance(&mut state);
 
     match cli.command {
         Some(Commands::Status { status }) if !status.verbose => {
@@ -263,12 +250,15 @@ fn main() {
             // println!("claim until {}", parse_timeout(&timeout));
         }
         Some(Commands::Release { }) => {
-            do_release(&mut state);
+            hog::do_release(&mut state);
         }
-        Some(Commands::Hog{ users }) => do_hog(users, &mut state),
+        Some(Commands::Hog{ users }) => hog::do_hog(users, &mut state),
         Some(Commands::Post{ message }) => do_post(message),
         Some(Commands::Users { }) => {
             users::do_list_users();
+        },
+        Some(Commands::Maintenance { }) => {
+            // no action required, do_maintenance() was already called
         },
         None => {
             show_status(StatusCommand::default(), &mut state);
