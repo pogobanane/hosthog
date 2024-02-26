@@ -22,7 +22,11 @@ pub struct Settings {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct DiskState {
+    // Claim under which the system is currently hogged
+    pub hogger: Option<Claim>,
     /// paths of all files that are bind-mounted to /dev/null
+    /// If unmounting failed for some, the system may not be hogged but this list may contain
+    /// items.
     pub overmounts: Vec<String>,
     /// current claims
     pub claims: Vec<Claim>,
@@ -56,6 +60,7 @@ pub fn store(state: &DiskState) {
 
 pub fn load_default() -> DiskState {
     let state = DiskState {
+        hogger: None,
         overmounts: vec![],
         claims: vec![],
         settings: Settings {
@@ -87,13 +92,25 @@ pub fn expand_authorized_keys_file(settings: &Settings, users: Vec<hog::User>) -
 }
 
 /// remove all claims that have timed out
-pub fn maintenance(state: &mut DiskState) {
+pub fn maintenance(state: &mut DiskState, needs_release: &mut bool) {
     let now = Local::now();
     let mut new_claims = vec![];
+    let mut dropped_claims = vec![];
     for claim in &state.claims {
         if claim.timeout > now {
             new_claims.push(claim.clone());
+        } else {
+            dropped_claims.push(claim.clone());
+        }
+    }
+    if let Some(hogger) = &state.hogger {
+        for claim in &dropped_claims {
+            if claim == hogger {
+                // we just dropped the claim responsible for a current hogging
+                *needs_release = true;
+            }
         }
     }
     state.claims = new_claims;
+    println!("{} claims expired, {} hogs released", dropped_claims.len(), if *needs_release { 1 } else { 0 });
 }
