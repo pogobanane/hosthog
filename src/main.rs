@@ -6,6 +6,7 @@ mod hog;
 mod diskstate;
 mod users;
 mod claims;
+mod util;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -135,15 +136,6 @@ fn show_status(_cmd: StatusCommand, state: &diskstate::DiskState) {
     }
 }
 
-fn prog() -> Option<String> {
-    std::env::current_exe()
-        .ok()?
-        .file_name()?
-        .to_str()?
-        .to_owned()
-        .into()
-}
-
 /// successfully runs a command or crashes
 fn run(command: &Vec<String>) {
     if command.len() < 1 {
@@ -245,9 +237,7 @@ fn main() {
             show_status_verbose(status, &mut state);
         }
         Some(Commands::Claim { claim }) => {
-            println!("claim");
             claims::do_claim(&claim, &mut state); 
-            // println!("claim until {}", parse_timeout(&timeout));
         }
         Some(Commands::Release { }) => {
             hog::do_release(&mut state);
@@ -264,7 +254,7 @@ fn main() {
             show_status(StatusCommand::default(), &mut state);
             println!(
                 "See more options with: {} help",
-                prog().expect("Your binary name looks very unexpected.")
+                util::prog_name()
             );
         }
         _ => unimplemented!()

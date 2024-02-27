@@ -112,5 +112,5 @@ pub fn maintenance(state: &mut DiskState, needs_release: &mut bool) {
         }
     }
     state.claims = new_claims;
-    println!("{} claims expired, {} hogs released", dropped_claims.len(), if *needs_release { 1 } else { 0 });
+    println!("Maintenance: {} claims expired, {} hogs released", dropped_claims.len(), if *needs_release { 1 } else { 0 });
 }
