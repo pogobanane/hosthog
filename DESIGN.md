@@ -70,7 +70,7 @@ is not displayed in tmux
 - Done: has optional argument to allow other user sets
 - Done: keeps disk state about which mounts it has active
 - Done: has subcommand to unhog/release
-- unhogs automatically, once the exclusive claim expires
+- Done: unhogs automatically, once the exclusive claim expires
 
 Bind mounting vs re-linking AuthorizedKeysFiles: Moving important config files like that seems unsafe. Relinking them on nixos is bad, because config managers (like nixos) may not always overwrite such a change. Bind-mounting resets on reboot, ensuring we never by accitdent lock someone out permanently.
 
