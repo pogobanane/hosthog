@@ -96,9 +96,11 @@ fn show_status_verbose(_cmd: StatusCommand, state: &diskstate::DiskState) {
 fn show_status(_cmd: StatusCommand, state: &diskstate::DiskState) {
     if state.overmounts.len() > 0 {
         println!("");
-        println!("System is currently hogged!");
-        println!("The following ssh keys are temporarily disabled:");
+        if let Some(claim) = &state.hogger {
+            println!("{}", hog::ssh_hogged_message(claim));
+        }
         let active_overmounts = state.overmounts.iter().filter(|file| hog::is_overmounted(file)).collect::<Vec<&String>>().len();
+        // println!("The following ssh keys are temporarily disabled:");
         // for file in &state.overmounts {
         //     if hog::is_overmounted(file) {
         //         active_overmounts += 1;
@@ -115,13 +117,13 @@ fn show_status(_cmd: StatusCommand, state: &diskstate::DiskState) {
     for claim in &state.claims {
         // format timeout duration
         let duration = claim.timeout - now;
-        let duration = format_timeout(duration);
+        let duration = util::format_timeout(duration);
 
         // replace duration with soft duration if applicable
         let duration = match claim.soft_timeout {
             Some(soft_timeout) => {
                 let duration = soft_timeout - now;
-                let duration = format_timeout(duration);
+                let duration = util::format_timeout(duration);
                 format!("{} (soft)", duration)
             },
             None => duration,
@@ -184,34 +186,6 @@ fn parse_timeout(timeout: &str) -> DateTime<Local> {
     }
 
     panic!("proper error handling");
-}
-
-fn format_timeout(duration: chrono::Duration) -> String {
-    // determine order of magnitude
-    let is_seconds = duration.num_seconds() < 60;
-    let is_minutes = duration.num_minutes() < 60;
-    let is_hours = duration.num_hours() < 24;
-    let is_days = duration.num_days() < 7;
-    let is_weeks = duration.num_weeks() < 4;
-
-    // format accurdingly
-    if is_seconds {
-        return format!("{}s", duration.num_seconds());
-    }
-    if is_minutes {
-        return format!("{}m", duration.num_minutes());
-    }
-    if is_hours {
-        return format!("{}h", duration.num_hours());
-    }
-    if is_days {
-        return format!("{}d", duration.num_days());
-    }
-    if is_weeks {
-        return format!("{}w", duration.num_weeks());
-    }
-
-    unreachable!();
 }
 
 fn do_maintenance(mut state: &mut diskstate::DiskState) {

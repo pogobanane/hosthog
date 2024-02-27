@@ -1,13 +1,55 @@
 use nix;
 use crate::diskstate;
 use crate::users;
+use once_cell::sync::Lazy;
+use crate::util;
+use std::fs;
 
-fn overmount(file: &str) -> Result<(), Option<nix::errno::Errno>> {
+static OVERLAY_PATH: Lazy<String> = Lazy::new(|| format!("{}/overlay", util::STATE_PATH));
+
+pub fn ssh_hogged_message(claim: &diskstate::Claim) -> String {
+    let duration = util::format_timeout_abs(claim.timeout);
+    vec![
+        format!("This system has been hogged by {}.", claim.user),
+        format!("Comment: {}", claim.comment),
+        format!("This claim will time out in {}.", duration),
+    ].join("\n")
+}
+
+fn ssh_hogged_command(message: &str) -> String {
+    message.lines().map(|line| 
+        format!("echo {}", line)
+    ).collect::<Vec<String>>().join("; ")
+}
+
+fn escape(input: &str) -> String {
+    input.chars().map(|c| match c {
+        '/' => String::from("_"),
+        '_' => String::from("__"),
+        _ => format!("{}", c),
+    }).collect()
+}
+
+fn overmount(file: &str, hogged_message: &str) -> Result<(), Option<nix::errno::Errno>> {
     if !std::path::Path::new(file).is_file() {
         return Err(None);
     }
+
+    let authorized_keys: String = fs::read_to_string(file).expect("foo");
+    let overlay_keys = authorized_keys.lines().map(|line| 
+        if !line.is_empty() {
+            format!("restrict,command=\"{}\" {}", ssh_hogged_command(hogged_message), line)
+        } else {
+            String::from(line)
+        }
+    ).collect::<Vec<String>>().join("\n");
+    let overlay_file = format!("{}/{}", OVERLAY_PATH.as_str(), escape(file));
+    fs::create_dir_all(OVERLAY_PATH.as_str()).expect("foo2");
+    fs::write(overlay_file.as_str(), overlay_keys).expect("foo1");
+
     match nix::mount::mount(
-        Some("/dev/null"), 
+        // Some("/dev/null"), 
+        Some(overlay_file.as_str()), 
         file,
         None::<&str>, 
         nix::mount::MsFlags::MS_BIND, 
@@ -52,7 +94,7 @@ fn list_users() -> Vec<User> {
     return users;
 }
 
-fn hog_ssh(exclude_users: Vec<String>, state: &mut diskstate::DiskState) {
+fn hog_ssh(exclude_users: Vec<String>, state: &mut diskstate::DiskState, message: String) {
     let users = list_users().into_iter().filter(|u| !exclude_users.contains(&u.name)).collect::<Vec<User>>();
     let all_auth_key_files: Vec<String> = diskstate::expand_authorized_keys_file(&state.settings, users);
     let all_files_len = all_auth_key_files.len();
@@ -64,7 +106,7 @@ fn hog_ssh(exclude_users: Vec<String>, state: &mut diskstate::DiskState) {
         .filter(|f| !is_overmounted(f)).collect();
     let mut failed = 0;
     for file in &auth_key_files {
-        match overmount(&file) {
+        match overmount(&file, message.as_str()) {
             Ok(_) => { state.overmounts.push(file.clone()); },
             Err(None) => { }, // ignore files that dont exist
             Err(Some(_errno)) => { failed += 1; },
@@ -99,7 +141,8 @@ pub fn do_hog(mut users: Vec<String>, state: &mut diskstate::DiskState) {
     }
     users.as_slice().into_iter().for_each(|i| print!("{} ", i));
     println!("");
-    hog_ssh(users, state);
+    let message = ssh_hogged_message(&claim);
+    hog_ssh(users, state, message);
     state.hogger = Some(claim);
     // let mut command = vec![String::from("pkill"), String::from("-u")];
     // command.extend(users);
@@ -119,6 +162,9 @@ fn release_ssh(state: &mut diskstate::DiskState) {
                 println!("released {}", file);
             },
         }
+    }
+    if let Err(err) = util::remove_dir_contents(OVERLAY_PATH.as_str()) {
+        println!("WARN: could not remove overlayed files: {}", err);
     }
     state.overmounts = overmounts;
 }
