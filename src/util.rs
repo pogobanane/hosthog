@@ -2,7 +2,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 use chrono;
-use chrono::{DateTime, Local, Duration};
+use chrono::{DateTime, Local};
 
 pub const STATE_PATH: &str = "/var/lib/hosthog";
 

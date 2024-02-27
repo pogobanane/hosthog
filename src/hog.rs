@@ -16,10 +16,8 @@ pub fn ssh_hogged_message(claim: &diskstate::Claim) -> String {
     ].join("\n")
 }
 
-fn ssh_hogged_command(message: &str) -> String {
-    message.lines().map(|line| 
-        format!("echo {}", line)
-    ).collect::<Vec<String>>().join("; ")
+fn ssh_hogged_command() -> String {
+    format!("sudo {} status", util::prog())
 }
 
 fn escape(input: &str) -> String {
@@ -30,7 +28,7 @@ fn escape(input: &str) -> String {
     }).collect()
 }
 
-fn overmount(file: &str, hogged_message: &str) -> Result<(), Option<nix::errno::Errno>> {
+fn overmount(file: &str) -> Result<(), Option<nix::errno::Errno>> {
     if !std::path::Path::new(file).is_file() {
         return Err(None);
     }
@@ -38,7 +36,7 @@ fn overmount(file: &str, hogged_message: &str) -> Result<(), Option<nix::errno::
     let authorized_keys: String = fs::read_to_string(file).expect("foo");
     let overlay_keys = authorized_keys.lines().map(|line| 
         if !line.is_empty() {
-            format!("restrict,command=\"{}\" {}", ssh_hogged_command(hogged_message), line)
+            format!("restrict,command=\"{}\" {}", ssh_hogged_command(), line)
         } else {
             String::from(line)
         }
@@ -94,7 +92,7 @@ fn list_users() -> Vec<User> {
     return users;
 }
 
-fn hog_ssh(exclude_users: Vec<String>, state: &mut diskstate::DiskState, message: String) {
+fn hog_ssh(exclude_users: Vec<String>, state: &mut diskstate::DiskState) {
     let users = list_users().into_iter().filter(|u| !exclude_users.contains(&u.name)).collect::<Vec<User>>();
     let all_auth_key_files: Vec<String> = diskstate::expand_authorized_keys_file(&state.settings, users);
     let all_files_len = all_auth_key_files.len();
@@ -106,7 +104,7 @@ fn hog_ssh(exclude_users: Vec<String>, state: &mut diskstate::DiskState, message
         .filter(|f| !is_overmounted(f)).collect();
     let mut failed = 0;
     for file in &auth_key_files {
-        match overmount(&file, message.as_str()) {
+        match overmount(&file) {
             Ok(_) => { state.overmounts.push(file.clone()); },
             Err(None) => { }, // ignore files that dont exist
             Err(Some(_errno)) => { failed += 1; },
@@ -141,8 +139,7 @@ pub fn do_hog(mut users: Vec<String>, state: &mut diskstate::DiskState) {
     }
     users.as_slice().into_iter().for_each(|i| print!("{} ", i));
     println!("");
-    let message = ssh_hogged_message(&claim);
-    hog_ssh(users, state, message);
+    hog_ssh(users, state);
     state.hogger = Some(claim);
     // let mut command = vec![String::from("pkill"), String::from("-u")];
     // command.extend(users);

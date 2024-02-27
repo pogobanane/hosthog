@@ -201,7 +201,6 @@ fn main() {
 
     let _original_state = diskstate::load();
     let mut state = diskstate::load();
-    do_maintenance(&mut state);
 
     match cli.command {
         Some(Commands::Status { status }) if !status.verbose => {
@@ -211,18 +210,25 @@ fn main() {
             show_status_verbose(status, &mut state);
         }
         Some(Commands::Claim { claim }) => {
+            do_maintenance(&mut state);
             claims::do_claim(&claim, &mut state); 
         }
         Some(Commands::Release { }) => {
+            do_maintenance(&mut state);
             hog::do_release(&mut state);
         }
-        Some(Commands::Hog{ users }) => hog::do_hog(users, &mut state),
-        Some(Commands::Post{ message }) => do_post(message),
+        Some(Commands::Hog{ users }) => {
+            do_maintenance(&mut state);
+            hog::do_hog(users, &mut state)
+        },
+        Some(Commands::Post{ message }) => {
+            do_post(message)
+        },
         Some(Commands::Users { }) => {
             users::do_list_users();
         },
         Some(Commands::Maintenance { }) => {
-            // no action required, do_maintenance() was already called
+            do_maintenance(&mut state);
         },
         None => {
             show_status(StatusCommand::default(), &mut state);
