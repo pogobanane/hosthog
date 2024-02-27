@@ -19,3 +19,4 @@ serde_yaml = "0.9"
 libc = "0.2"
 nix = { version = "0.27", features = ["mount"] }
 netstat = "0.7"
+once_cell = "1.19"

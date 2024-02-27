@@ -1,8 +1,10 @@
 use serde::{Serialize, Deserialize};
 use chrono::prelude::*;
 use crate::users;
+use crate::util;
+use once_cell::sync::Lazy;
 
-const STATE_PATH: &str = "/var/lib/hosthog/hosthog.json";
+static STATE_FILE: Lazy<String> = Lazy::new(|| format!("{}/hosthog.json", util::STATE_PATH));
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Claim {
@@ -35,12 +37,12 @@ pub struct DiskState {
 }
 
 pub fn load() -> DiskState {
-    if !std::path::Path::new(STATE_PATH).is_file() {
+    if !std::path::Path::new(STATE_FILE.as_str()).is_file() {
         let defaults = load_default();
         store(&defaults);
     }
 
-    let text = std::fs::read_to_string(STATE_PATH).expect("failed to read state file");
+    let text = std::fs::read_to_string(STATE_FILE.as_str()).expect("failed to read state file");
     let state: DiskState = serde_json::from_str(&text).unwrap();
     return state;
 }
@@ -51,11 +53,11 @@ pub fn store(state: &DiskState) {
     }
     let json = serde_json::to_string(&state).unwrap();
     // create parent directory if it does not exist
-    let parent = std::path::Path::new(STATE_PATH).parent().unwrap();
+    let parent = std::path::Path::new(STATE_FILE.as_str()).parent().unwrap();
     if !parent.is_dir() {
         std::fs::create_dir_all(parent).expect("failed to create state directory");
     }
-    std::fs::write(STATE_PATH, json).expect("failed to write state file");
+    std::fs::write(STATE_FILE.as_str(), json).expect("failed to write state file");
 }
 
 pub fn load_default() -> DiskState {
