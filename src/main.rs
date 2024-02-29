@@ -194,6 +194,10 @@ fn do_maintenance(mut state: &mut diskstate::DiskState) {
     if needs_release {
         hog::do_release(&mut state);
     }
+    if state.hogger.is_none() && state.overmounts.len() != 0 {
+        println!("WARN: host is not hogged, yet there still seem to be unexpected overmounts. Attempting to remove.");
+        hog::release_ssh(state);
+    }
 }
 
 fn main() {

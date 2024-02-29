@@ -146,10 +146,13 @@ pub fn do_hog(mut users: Vec<String>, state: &mut diskstate::DiskState) {
     // run(&command);
 }
 
-fn release_ssh(state: &mut diskstate::DiskState) {
+pub fn release_ssh(state: &mut diskstate::DiskState) {
     let mut overmounts: Vec<String> = vec![];
     for file in &state.overmounts {
         let path = std::path::Path::new(file);
+        if !is_overmounted(file) {
+            continue;
+        }
         match nix::mount::umount(path) {
             Err(err) => {
                 println!("failed to release {}: {:?}", file, err);
