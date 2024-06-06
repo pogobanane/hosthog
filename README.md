@@ -21,17 +21,17 @@ Options:
 
 ## Implementation status
 
-- `hog` clears all AuthorizedKeysFiles via bind-mounting overlay files
+- `claim` hosthog maintains a list of claims which time out. You need an exclusive claim to hog the system.
+- `hog` clears all AuthorizedKeysFiles via bind-mounting overlay files. Locked out users receive a hosthog message when they attempt to connect via ssh.
 - `release` restores all AuthorizedKeysFiles by unmounting bind-mounts
 - `users` lists active users via `who`, and `netstat`
 - `post` sends a message via `wall`
-- `claim` hosthog maintains a list of claims which time out. You need an exclusive claim to hog the system.
 - `status` lists claims
 
 
 ## Installation
 
-Optional, but recommended dependencies: `at`
+Optional, but recommended dependencies: `at` (for automatic timeout processing)
 
 User-local installation via cargo: `cargo install --path .`
 
