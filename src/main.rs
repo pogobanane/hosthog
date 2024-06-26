@@ -45,6 +45,14 @@ pub struct ClaimCommand {
     exclusive: bool,
 }
 
+
+#[derive(clap::ValueEnum, Clone)]
+enum Resource {
+    SystemdTimers,
+    SshKeys,
+}
+
+
 #[derive(Subcommand)]
 enum Commands {
     /// show current claims
@@ -86,8 +94,10 @@ enum Commands {
     },
 
     #[command(hide(true))]
-    /// Disable systemd-timers
-    SystemdTimers {},
+    /// disable/hog a system resource  (this disabled e.g. ssh keys)
+    Disable {
+        resource: Resource,
+    },
     #[command(hide(true))]
     // Internal command used to trigger updating the list of claims and hogs
     Maintenance {}
@@ -219,7 +229,7 @@ fn main() {
         }
         Some(Commands::Claim { claim }) => {
             do_maintenance(&mut state);
-            claims::do_claim(&claim, &mut state); 
+            claims::do_claim(&claim, &mut state);
         }
         Some(Commands::Release { }) => {
             do_maintenance(&mut state);
@@ -235,8 +245,11 @@ fn main() {
         Some(Commands::Users { }) => {
             users::do_list_users();
         },
-        Some(Commands::SystemdTimers { }) =>{
-            systemd_timers::start_hook();
+        Some(Commands::Disable{ resource: Resource::SystemdTimers {}}) => {
+            systemd_timers::disable_resource();
+        },
+        Some(Commands::Disable{ resource: Resource::SystemdTimers {}}) => {
+            systemd_timers::enable_resource();
         },
         Some(Commands::Maintenance { }) => {
             do_maintenance(&mut state);
@@ -250,7 +263,7 @@ fn main() {
         }
         _ => unimplemented!()
     };
-    
+
     if _original_state != state {
         // println!("state changed, storing");
         diskstate::store(&state);

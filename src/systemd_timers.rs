@@ -17,40 +17,9 @@ struct Unit {
     job_path: OwnedObjectPath,
 }
 
-async fn list_units() {}
-
-pub fn start_hook() {
-    println!("systemd_timers hook start");
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    let ret = rt.block_on(run());
-    if let Err(e) = ret {
-        eprintln!("Error: {}", e);
-        std::process::exit(1);
-    }
-}
-
-async fn run() -> ExResult<()> {
-    let conn = zbus::Connection::system().await.expect("Can't connect");
-    let manager = zbus_systemd::systemd1::ManagerProxy::new(&conn)
-        .await
-        .expect("Can't get systemd manager");
-    let target = manager
-        .get_default_target()
-        .await
-        .expect("Can't get default target");
-    println!("Default target: '{}'", target);
-
-    // list units
+async fn list_timers<'a>(manager: &zbus_systemd::systemd1::ManagerProxy<'a>, states: Vec<String>) -> Vec<Unit> {
     let units = manager
-        .list_units()
-        .await
-        .expect("Can't list systemd units");
-    let patterns = vec![
-        "active".to_string(),
-        "inactive".to_string()
-    ];
-    let units = manager
-        .list_units_by_patterns(patterns, vec!["*.timer".to_string()])
+        .list_units_by_patterns(states, vec!["*.timer".to_string()])
         .await
         .expect("Can't list systemd units");
     // convert unit tuple to struct
@@ -81,6 +50,43 @@ async fn run() -> ExResult<()> {
             }
         },
     );
+    return units.collect();
+}
+
+pub fn disable_resource() {
+    println!("systemd_timers: disable timers");
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let ret = rt.block_on(disable_timers());
+    if let Err(e) = ret {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
+    }
+}
+
+pub fn enable_resource() {
+    println!("systemd_timers: enable timers");
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let ret = rt.block_on(enable_timers());
+    if let Err(e) = ret {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
+    }
+}
+
+async fn disable_timers() -> ExResult<()> {
+    let conn = zbus::Connection::system().await.expect("Can't connect");
+    let manager = zbus_systemd::systemd1::ManagerProxy::new(&conn)
+        .await
+        .expect("Can't get systemd manager");
+
+    // list units
+    let patterns = vec![
+        "active".to_string(),
+        "inactive".to_string()
+    ];
+    let units = list_timers(&manager, patterns).await;
+
+
     for unit in units {
         let unit_proxy  = zbus_systemd::systemd1::TimerProxy::new(&conn, unit.unit_path)
             .await
@@ -102,5 +108,13 @@ async fn run() -> ExResult<()> {
         };
         // manager.stop_unit(unit.name, "fail".to_string()); // or maybe "replace"?
     }
+    return Ok(());
+}
+
+async fn enable_timers() -> ExResult<()> {
+    let conn = zbus::Connection::system().await.expect("Can't connect");
+    let manager = zbus_systemd::systemd1::ManagerProxy::new(&conn)
+        .await
+        .expect("Can't get systemd manager");
     return Ok(());
 }
