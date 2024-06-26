@@ -7,6 +7,7 @@ mod diskstate;
 mod users;
 mod claims;
 mod util;
+mod systemd_timers;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -84,6 +85,9 @@ enum Commands {
     Users {
     },
 
+    #[command(hide(true))]
+    /// Disable systemd-timers
+    SystemdTimers {},
     #[command(hide(true))]
     // Internal command used to trigger updating the list of claims and hogs
     Maintenance {}
@@ -230,6 +234,9 @@ fn main() {
         },
         Some(Commands::Users { }) => {
             users::do_list_users();
+        },
+        Some(Commands::SystemdTimers { }) =>{
+            systemd_timers::start_hook();
         },
         Some(Commands::Maintenance { }) => {
             do_maintenance(&mut state);
