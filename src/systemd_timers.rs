@@ -1,10 +1,11 @@
-use zbus_systemd::{zbus, zvariant::OwnedObjectPath};
 use crate::diskstate;
+use zbus_systemd::{zbus, zvariant::OwnedObjectPath};
 
 type ExResult<T> = Result<T, Box<dyn std::error::Error + 'static>>;
 
 /// Layout defined by https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.systemd1.html
 #[derive(Debug)]
+#[allow(dead_code)]
 struct Unit {
     name: String,
     description: String,
@@ -18,7 +19,10 @@ struct Unit {
     job_path: OwnedObjectPath,
 }
 
-async fn list_timers<'a>(manager: &zbus_systemd::systemd1::ManagerProxy<'a>, states: Vec<String>) -> Vec<Unit> {
+async fn list_timers<'a>(
+    manager: &zbus_systemd::systemd1::ManagerProxy<'a>,
+    states: Vec<String>,
+) -> Vec<Unit> {
     let units = manager
         .list_units_by_patterns(states, vec!["*.timer".to_string()])
         .await
@@ -54,7 +58,7 @@ async fn list_timers<'a>(manager: &zbus_systemd::systemd1::ManagerProxy<'a>, sta
     return units.collect();
 }
 
-pub fn disable_resource(mut state: &mut diskstate::DiskState) {
+pub fn disable_resource(state: &mut diskstate::DiskState) {
     println!("systemd_timers: disable timers");
     let rt = tokio::runtime::Runtime::new().unwrap();
     let ret = rt.block_on(disable_timers(state));
@@ -64,7 +68,7 @@ pub fn disable_resource(mut state: &mut diskstate::DiskState) {
     }
 }
 
-pub fn enable_resource(mut state: &mut diskstate::DiskState) {
+pub fn enable_resource(state: &mut diskstate::DiskState) {
     println!("systemd_timers: enable timers");
     let rt = tokio::runtime::Runtime::new().unwrap();
     let ret = rt.block_on(enable_timers(state));
@@ -74,7 +78,7 @@ pub fn enable_resource(mut state: &mut diskstate::DiskState) {
     }
 }
 
-async fn disable_timers(mut state: &mut diskstate::DiskState) -> ExResult<()> {
+async fn disable_timers(state: &mut diskstate::DiskState) -> ExResult<()> {
     let conn = zbus::Connection::system().await.expect("Can't connect");
     let manager = zbus_systemd::systemd1::ManagerProxy::new(&conn)
         .await
@@ -86,7 +90,6 @@ async fn disable_timers(mut state: &mut diskstate::DiskState) -> ExResult<()> {
         // "inactive".to_string()
     ];
     let units = list_timers(&manager, patterns).await;
-
 
     for unit in units {
         disable_timer(state, &manager, &unit).await;
@@ -106,15 +109,28 @@ async fn disable_timers(mut state: &mut diskstate::DiskState) -> ExResult<()> {
     return Ok(());
 }
 
-async fn disable_timer<'a>(mut state: &mut diskstate::DiskState, manager: &zbus_systemd::systemd1::ManagerProxy<'a>, unit: &Unit) {
+async fn disable_timer<'a>(
+    state: &mut diskstate::DiskState,
+    manager: &zbus_systemd::systemd1::ManagerProxy<'a>,
+    unit: &Unit,
+) {
     println!("disabling {}", unit.name);
-    match manager.stop_unit(unit.name.clone(), "fail".to_string()).await { // or maybe "replace"?
-        Err(zbus::Error::MethodError(name, option, message)) if name == "org.freedesktop.DBus.Error.AccessDenied" => {
-            println!("WARN: insuficient permissions to start {}. Try to run this program as root.", unit.name);
-        },
+    match manager
+        .stop_unit(unit.name.clone(), "fail".to_string())
+        .await
+    {
+        // or maybe "replace"?
+        Err(zbus::Error::MethodError(name, _option, _message))
+            if name == "org.freedesktop.DBus.Error.AccessDenied" =>
+        {
+            println!(
+                "WARN: insuficient permissions to start {}. Try to run this program as root.",
+                unit.name
+            );
+        }
         Err(e) => {
             panic!("Can't start timer unit: {}", e);
-        },
+        }
         Ok(_) => {
             if !state.disabled_systemd_timers.contains(&unit.name) {
                 state.disabled_systemd_timers.push(unit.name.clone());
@@ -123,22 +139,35 @@ async fn disable_timer<'a>(mut state: &mut diskstate::DiskState, manager: &zbus_
     };
 }
 
-async fn enable_timers(mut state: &mut diskstate::DiskState) -> ExResult<()> {
+async fn enable_timers(state: &mut diskstate::DiskState) -> ExResult<()> {
     let conn = zbus::Connection::system().await.expect("Can't connect");
     let manager = zbus_systemd::systemd1::ManagerProxy::new(&conn)
         .await
         .expect("Can't get systemd manager");
 
-    let disabled_timers_copy: Vec<String> = state.disabled_systemd_timers.iter().map(|t| t.clone()).collect();
+    let disabled_timers_copy: Vec<String> = state
+        .disabled_systemd_timers
+        .iter()
+        .map(|t| t.clone())
+        .collect();
     for timer_name in disabled_timers_copy {
         println!("enabling {}", timer_name);
-        match manager.start_unit(timer_name.clone(), "fail".to_string()).await { // or maybe "replace"?
-            Err(zbus::Error::MethodError(name, option, message)) if name == "org.freedesktop.DBus.Error.AccessDenied" => {
-                println!("WARN: insuficient permissions to start {}. Try to run this program as root.", timer_name);
-            },
+        match manager
+            .start_unit(timer_name.clone(), "fail".to_string())
+            .await
+        {
+            // or maybe "replace"?
+            Err(zbus::Error::MethodError(name, _option, _message))
+                if name == "org.freedesktop.DBus.Error.AccessDenied" =>
+            {
+                println!(
+                    "WARN: insuficient permissions to start {}. Try to run this program as root.",
+                    timer_name
+                );
+            }
             Err(e) => {
                 panic!("Can't start timer unit: {}", e);
-            },
+            }
             Ok(_) => {
                 // let foo = state.disabled_systemd_timers.iter().filter_map(|t| {
                 //     if *t == timer_name {
@@ -151,7 +180,6 @@ async fn enable_timers(mut state: &mut diskstate::DiskState) -> ExResult<()> {
                 state.disabled_systemd_timers.retain(|t| *t != timer_name);
             }
         };
-
     }
     return Ok(());
 }
