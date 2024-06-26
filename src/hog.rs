@@ -1,5 +1,6 @@
 use nix;
 use crate::diskstate;
+use crate::systemd_timers;
 use crate::users;
 use once_cell::sync::Lazy;
 use crate::util;
@@ -141,6 +142,10 @@ pub fn do_hog(mut users: Vec<String>, state: &mut diskstate::DiskState) {
     println!("");
     hog_ssh(users, state);
     state.hogger = Some(claim);
+
+    // run other modeules
+    systemd_timers::disable_resource(state);
+
     // let mut command = vec![String::from("pkill"), String::from("-u")];
     // command.extend(users);
     // run(&command);
@@ -181,6 +186,10 @@ pub fn do_release(state: &mut diskstate::DiskState) {
     // remove "me"s exclusive claims
     let me = users::my_username();
     state.claims.retain(|claim| !(claim.user == me && claim.exclusive));
+
+    // run other modeules
+    systemd_timers::disable_resource(state);
+
 }
 
 pub fn is_overmounted(file: &str) -> bool {

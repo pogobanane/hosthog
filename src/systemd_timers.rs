@@ -90,7 +90,7 @@ async fn disable_timers(mut state: &mut diskstate::DiskState) -> ExResult<()> {
 
     for unit in units {
         disable_timer(state, &manager, &unit).await;
-        println!(" - {} ({})", unit.name, unit.active_state);
+        // println!(" - {} ({})", unit.name, unit.active_state);
 
         // // print timer details
         // let unit_proxy  = zbus_systemd::systemd1::TimerProxy::new(&conn, unit.unit_path)
@@ -107,7 +107,7 @@ async fn disable_timers(mut state: &mut diskstate::DiskState) -> ExResult<()> {
 }
 
 async fn disable_timer<'a>(mut state: &mut diskstate::DiskState, manager: &zbus_systemd::systemd1::ManagerProxy<'a>, unit: &Unit) {
-    println!("disabling {}: {}", unit.name, unit.description);
+    println!("disabling {}", unit.name);
     match manager.stop_unit(unit.name.clone(), "fail".to_string()).await { // or maybe "replace"?
         Err(zbus::Error::MethodError(name, option, message)) if name == "org.freedesktop.DBus.Error.AccessDenied" => {
             println!("WARN: insuficient permissions to start {}. Try to run this program as root.", unit.name);
@@ -140,15 +140,15 @@ async fn enable_timers(mut state: &mut diskstate::DiskState) -> ExResult<()> {
                 panic!("Can't start timer unit: {}", e);
             },
             Ok(_) => {
-                let foo = state.disabled_systemd_timers.iter().filter_map(|t| {
-                    if *t == timer_name {
-                        None
-                    } else {
-                        Some(t.clone())
-                    }
-                }).collect();
-                state.disabled_systemd_timers = foo;
-                // state.disabled_systemd_timers.remove(1);
+                // let foo = state.disabled_systemd_timers.iter().filter_map(|t| {
+                //     if *t == timer_name {
+                //         None
+                //     } else {
+                //         Some(t.clone())
+                //     }
+                // }).collect();
+                // state.disabled_systemd_timers = foo;
+                state.disabled_systemd_timers.retain(|t| *t != timer_name);
             }
         };
 
