@@ -49,7 +49,8 @@ pub struct ClaimCommand {
 #[derive(clap::ValueEnum, Clone)]
 enum Resource {
     SystemdTimers,
-    SshKeys,
+    // SshKeys, // cant be done via this API because it relies on cli params regarding which users
+    // to lock out
 }
 
 
@@ -94,8 +95,13 @@ enum Commands {
     },
 
     #[command(hide(true))]
-    /// disable/hog a system resource  (this disabled e.g. ssh keys)
+    /// disable/hog a system resource  (this disables e.g. ssh keys)
     Disable {
+        resource: Resource,
+    },
+    #[command(hide(true))]
+    /// enable/release a system resource  (this enables e.g. ssh keys)
+    Enable {
         resource: Resource,
     },
     #[command(hide(true))]
@@ -246,10 +252,10 @@ fn main() {
             users::do_list_users();
         },
         Some(Commands::Disable{ resource: Resource::SystemdTimers {}}) => {
-            systemd_timers::disable_resource();
+            systemd_timers::disable_resource(&mut state);
         },
-        Some(Commands::Disable{ resource: Resource::SystemdTimers {}}) => {
-            systemd_timers::enable_resource();
+        Some(Commands::Enable{ resource: Resource::SystemdTimers {}}) => {
+            systemd_timers::enable_resource(&mut state);
         },
         Some(Commands::Maintenance { }) => {
             do_maintenance(&mut state);

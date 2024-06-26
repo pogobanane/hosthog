@@ -34,6 +34,7 @@ pub struct DiskState {
     pub claims: Vec<Claim>,
     /// settings to be modified by users
     pub settings: Settings,
+    pub disabled_systemd_timers: Vec<String>,
 }
 
 pub fn load() -> DiskState {
@@ -71,6 +72,7 @@ pub fn load_default() -> DiskState {
                 String::from("/etc/ssh/authorized_keys.d/%u"),
             ],
         },
+        disabled_systemd_timers: vec![],
     };
 
     return state;
