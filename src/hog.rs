@@ -188,7 +188,7 @@ pub fn do_release(state: &mut diskstate::DiskState) {
     state.claims.retain(|claim| !(claim.user == me && claim.exclusive));
 
     // run other modeules
-    systemd_timers::disable_resource(state);
+    systemd_timers::enable_resource(state);
 
 }
 
