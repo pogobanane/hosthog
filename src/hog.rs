@@ -120,7 +120,7 @@ fn hog_ssh(exclude_users: Vec<String>, state: &mut diskstate::DiskState) {
 }
 
 pub fn do_hog(mut users: Vec<String>, state: &mut diskstate::DiskState) {
-    let me = users::my_username();
+    let me = users::my_username().unwrap();
     let claim = match state.claims.iter().find(|claim| claim.user == me && claim.exclusive) {
         Some(claim) => claim.clone(),
         None => panic!("Hogging not allowed. Claim exclusive access first."),
@@ -182,10 +182,11 @@ pub fn do_release(state: &mut diskstate::DiskState) {
         state.claims.retain(|claim| claim != hogger);
         state.hogger = None;
     }
-    
-    // remove "me"s exclusive claims
-    let me = users::my_username();
-    state.claims.retain(|claim| !(claim.user == me && claim.exclusive));
+
+    // remove "me"s ongoing exclusive claims, if user runs the release subcommand
+    if let Some(me) = users::my_username() {
+        state.claims.retain(|claim| !(claim.user == me && claim.exclusive));
+    }
 
     // run other modeules
     systemd_timers::enable_resource(state);

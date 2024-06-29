@@ -78,13 +78,14 @@ pub fn is_root() -> bool {
 }
 
 /// get actual login username (instead of root when in sudo)
-pub fn my_username() -> String {
+pub fn my_username() -> Option<String> {
     let me = unsafe {
         let cstr = libc::getlogin();
         if cstr.is_null() {
-            panic!("no login name found");
+            println!("WARN: no login name found");
+            return None;
         }
         std::str::from_utf8_unchecked(std::slice::from_raw_parts(cstr as *const u8, libc::strlen(cstr)))
     }.to_string();
-    return me;
+    return Some(me);
 }

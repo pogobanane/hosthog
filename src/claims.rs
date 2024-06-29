@@ -41,7 +41,7 @@ fn schedule_maintenance(timeout: DateTime<Local>) {
 
 pub fn do_claim(claim: &ClaimCommand, state: &mut DiskState) {
     // filter claims for exclusive claims by other users
-    let other_exclusive_claims = state.claims.iter().any(|claim| claim.exclusive && claim.user != users::my_username());
+    let other_exclusive_claims = state.claims.iter().any(|claim| claim.exclusive && claim.user != users::my_username().unwrap());
     if other_exclusive_claims {
         panic!("Exclusive claim already exists. Release first.");
     }
@@ -55,7 +55,7 @@ pub fn do_claim(claim: &ClaimCommand, state: &mut DiskState) {
         timeout,
         soft_timeout,
         exclusive: claim.exclusive,
-        user: users::my_username(),
+        user: users::my_username().unwrap(),
         comment: claim.comment.join(" "),
     };
 
