@@ -1,6 +1,7 @@
-# hosthog
+# 🦔 hosthog
 
-announce which resources you need on collaboratively used linux hosts
+Announce which resources you need on collaboratively used linux hosts.
+Keep other processes away while you have an exclusive lock on the host.
 
 ```
 Usage: hosthog [COMMAND]
@@ -19,20 +20,29 @@ Options:
   -V, --version  Print version information
 ```
 
+Example:
+```bash
+sudo hosthog claim --exclusive 15min some benchmarks
+sudo hosthog hog
+```
+For 15 minutes other users will be locked out from ssh and tasks scheduled by systemd are paused.
+
 ## Implementation status
 
 - `claim` hosthog maintains a list of claims which time out. You need an exclusive claim to hog the system.
-- `hog` clears all AuthorizedKeysFiles via bind-mounting overlay files. Locked out users receive a hosthog message when they attempt to connect via ssh.
-- `release` restores all AuthorizedKeysFiles by unmounting bind-mounts
-- `users` lists active users via `who`, and `netstat`
+- `hog`: prevent things from happening that are not related to you
+  - Clears all AuthorizedKeysFiles via bind-mounting overlay files. Locked out users receive a hosthog message when they attempt to connect via ssh.
+  - Stops all systemd.timers.
+- `release` releases exclusive claims and reverts `hog`
+- `users` lists active users via `who`, and ssh sessions with `netstat`
 - `post` sends a message via `wall`
 - `status` lists claims
 
 
 ## Installation
 
-Optional, but recommended dependencies: `at` (for automatic timeout processing)
+Optional, but recommended dependencies: `at` (needed to remove claims on timeout)
 
 User-local installation via cargo: `cargo install --path .`
 
-Or run it from within a nix shell: `nix shell .#default`
+Or run it from within a nix shell: `nix shell github:pogobanane/hosthog#default` (timeouts won't work)
