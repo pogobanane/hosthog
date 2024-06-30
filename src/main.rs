@@ -1,5 +1,13 @@
 use clap::{Args, Parser, Subcommand};
 use std::process::Command;
+use chrono::prelude::*;
+
+mod hog;
+mod diskstate;
+mod users;
+mod claims;
+mod util;
+mod systemd_timers;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -12,16 +20,39 @@ struct Cli {
 #[derive(Args)]
 struct StatusCommand {
     #[arg(short, long)]
-    /// help string
-    list: bool,
+    /// More detailed status
+    verbose: bool,
 }
 
 // this does not actually set the default value for the cli
 impl Default for StatusCommand {
     fn default() -> Self {
-        Self { list: true }
+        Self { verbose: false}
     }
 }
+
+#[derive(Args)]
+pub struct ClaimCommand {
+    /// Timeout (hard): after this time the claim will be removed
+    timeout: String,
+    /// Optional message/note
+    comment: Vec<String>,
+    /// Optional timeout: will not remove the claim, but will be shown in the status
+    #[arg(short, long)]
+    soft_timeout: Option<String>,
+    /// Claim explclusive access. Other new claims will not be allowed.
+    #[arg(short, long)]
+    exclusive: bool,
+}
+
+
+#[derive(clap::ValueEnum, Clone)]
+enum Resource {
+    SystemdTimers,
+    // SshKeys, // cant be done via this API because it relies on cli params regarding which users
+    // to lock out
+}
+
 
 #[derive(Subcommand)]
 enum Commands {
@@ -30,15 +61,19 @@ enum Commands {
         #[command(flatten)]
         status: StatusCommand,
     },
-    /// claim a resource
+    /// Claim a resource. Fails if already claimed exclusively.
     Claim {
         #[command(flatten)]
-        status: StatusCommand,
+        claim: ClaimCommand,
     },
-    /// prematurely release a claim
-    Release {
-        #[command(flatten)]
-        status: StatusCommand,
+    /// prematurely release a claim (removes all of your hogs and exclusive claims)
+    Release {},
+    /// Hog the entire host (others will hate you)
+    Hog {
+        /// Block ssh login for all users except the ones specified here (default: your user and
+        /// root). Specify -u multiple times to add more users.
+        #[arg(short, long)]
+        users: Vec<String>,
     },
     /// post a message to all logged in users
     ///
@@ -57,21 +92,70 @@ enum Commands {
     /// - xrdp sessions
     /// - vscode?
     Users {
+    },
+
+    #[command(hide(true))]
+    /// disable/hog a system resource  (this disables e.g. ssh keys)
+    Disable {
+        resource: Resource,
+    },
+    #[command(hide(true))]
+    /// enable/release a system resource  (this enables e.g. ssh keys)
+    Enable {
+        resource: Resource,
+    },
+    #[command(hide(true))]
+    // Internal command used to trigger updating the list of claims and hogs
+    Maintenance {}
+}
+
+fn show_status_verbose(_cmd: StatusCommand, state: &diskstate::DiskState) {
+    println!("{}", serde_yaml::to_string(&state).unwrap());
+}
+
+fn show_status(_cmd: StatusCommand, state: &diskstate::DiskState) {
+    if state.overmounts.len() > 0 {
+        println!("");
+        if let Some(claim) = &state.hogger {
+            println!("{}", hog::ssh_hogged_message(claim));
+        }
+        let active_overmounts = state.overmounts.iter().filter(|file| hog::is_overmounted(file)).collect::<Vec<&String>>().len();
+        // println!("The following ssh keys are temporarily disabled:");
+        // for file in &state.overmounts {
+        //     if hog::is_overmounted(file) {
+        //         active_overmounts += 1;
+        //     }
+        // }
+        println!("{} keys were disabled to hog, {} keys are still disabled", state.overmounts.len(), active_overmounts);
+        println!("");
     }
-}
 
-fn show_status(cmd: StatusCommand) {
-    println!("Showing status.");
-    println!("status list: {}", cmd.list);
-}
+    println!("Active claims:");
 
-fn prog() -> Option<String> {
-    std::env::current_exe()
-        .ok()?
-        .file_name()?
-        .to_str()?
-        .to_owned()
-        .into()
+    println!("{:<13} {:<13} {}", "Remaining", "User", "Comment");
+    let now = DateTime::from(Local::now());
+    for claim in &state.claims {
+        // format timeout duration
+        let duration = claim.timeout - now;
+        let duration = util::format_timeout(duration);
+
+        // replace duration with soft duration if applicable
+        let duration = match claim.soft_timeout {
+            Some(soft_timeout) => {
+                let duration = soft_timeout - now;
+                let duration = util::format_timeout(duration);
+                format!("{} (soft)", duration)
+            },
+            None => duration,
+        };
+
+        let comment = match claim.exclusive {
+            true => format!("(exclusive) {}", claim.comment),
+            false => claim.comment.clone(),
+        };
+
+        println!("{:<13} {:<13} {}", duration, claim.user, comment);
+    }
 }
 
 /// successfully runs a command or crashes
@@ -100,27 +184,97 @@ fn do_post(mut message: Vec<String>) {
     run(&message);
 }
 
+fn parse_timeout(timeout: &str) -> DateTime<Local> {
+
+    let now = DateTime::from(Local::now());
+
+    // try to parse as duration
+    match duration_str::parse(timeout) {
+        Ok(parsed) => {
+            return now + chrono::Duration::from_std(parsed).unwrap();
+        },
+        Err(e) => {
+            println!("error parsing timeout as duration: {}. Trying again as absolute datetime.", e);
+            // try to parse as datetime
+            match dateparser::parse(timeout) {
+                Ok(parsed) => {
+                    return DateTime::from(parsed);
+                },
+                Err(e) => println!("error parsing timeout as date: {}", e)
+            };
+        }
+    }
+
+    panic!("proper error handling");
+}
+
+fn do_maintenance(mut state: &mut diskstate::DiskState) {
+    let mut needs_release = false;
+    diskstate::maintenance(&mut state, &mut needs_release);
+    if needs_release {
+        hog::do_release(&mut state);
+    }
+    if state.hogger.is_none() && state.overmounts.len() != 0 {
+        println!("WARN: host is not hogged, yet there still seem to be unexpected overmounts. Attempting to remove.");
+        hog::release_ssh(state);
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
+
+    let _original_state = diskstate::load();
+    let mut state = diskstate::load();
+    if let Err(e) = diskstate::check_version(&state) {
+        panic!("{}", e);
+    }
+
     match cli.command {
-        Some(Commands::Status { status }) => {
-            show_status(status);
+        Some(Commands::Status { status }) if !status.verbose => {
+            show_status(status, &mut state);
         }
-        Some(Commands::Claim { status }) => {
-            println!("claim list: {}", status.list);
+        Some(Commands::Status { status }) if status.verbose => {
+            show_status_verbose(status, &mut state);
         }
-        Some(Commands::Release { status }) => {
-            println!("release list: {}", status.list);
+        Some(Commands::Claim { claim }) => {
+            do_maintenance(&mut state);
+            claims::do_claim(&claim, &mut state);
         }
-        Some(Commands::Post{ message }) => do_post(message),
+        Some(Commands::Release { }) => {
+            do_maintenance(&mut state);
+            hog::do_release(&mut state);
+        }
+        Some(Commands::Hog{ users }) => {
+            do_maintenance(&mut state);
+            hog::do_hog(users, &mut state)
+        },
+        Some(Commands::Post{ message }) => {
+            do_post(message)
+        },
+        Some(Commands::Users { }) => {
+            users::do_list_users();
+        },
+        Some(Commands::Disable{ resource: Resource::SystemdTimers {}}) => {
+            systemd_timers::disable_resource(&mut state);
+        },
+        Some(Commands::Enable{ resource: Resource::SystemdTimers {}}) => {
+            systemd_timers::enable_resource(&mut state);
+        },
+        Some(Commands::Maintenance { }) => {
+            do_maintenance(&mut state);
+        },
         None => {
-            println!("print some global settings like link to calendar, spreadsheet or database");
-            show_status(StatusCommand::default());
+            show_status(StatusCommand::default(), &mut state);
             println!(
                 "See more options with: {} help",
-                prog().expect("Your binary name looks very unexpected.")
+                util::prog_name()
             );
         }
         _ => unimplemented!()
     };
+
+    if _original_state != state {
+        // println!("state changed, storing");
+        diskstate::store(&state);
+    }
 }

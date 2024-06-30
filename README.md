@@ -1,100 +1,48 @@
-# hosthog
-announce which resources you need on collaboratively used linux hosts
+# 🦔 hosthog
 
-# Status
+Announce which resources you need on collaboratively used linux hosts.
+Keep other processes away while you have an exclusive lock on the host.
 
-in development/stale, is not even a prototype
+```
+Usage: hosthog [COMMAND]
 
-# Design decisions
+Commands:
+  status   show current claims
+  claim    Claim a resource. Fails if already claimed exclusively
+  release  prematurely release a claim (removes all of your hogs and exclusive claims)
+  hog      Hog the entire host (others will hate you)
+  post     post a message to all logged in users
+  users    List all logged in users
+  help     Print this message or the help of the given subcommand(s)
 
-### Use-cases
+Options:
+  -h, --help     Print help information
+  -V, --version  Print version information
+```
 
-A user logs into a server he as been using regularly. 
-At login-time he wants to be prompted with a message, describing who is using the same server right now. 
-This way, he can notice, if a new person started using the server - without having to remember to check some external resource. 
-(message of the day)
+Example:
+```bash
+sudo hosthog claim --exclusive 15min some benchmarks
+sudo hosthog hog
+```
+For 15 minutes other users will be locked out from ssh and tasks scheduled by systemd are paused.
 
-A user is working on a server. He wants to be prompted with a message, when someone declares a new use of the local host. 
-This way, he can notice, if someone else needs exclusive access to a resource the user is using right now. 
-(wall)
+## Implementation status
 
-A user wants to quickly reboot a machine. He wants a console command to claim exclusive access in a few minutes for a few minutes. 
-
-A user wants to reserve hardware for a long running research project running till a deadline. 
-
-A user wants to edit or extend a reservation.
-
-A user wants to query, which users are online right now (`users`, running processes, ...)
-
-A user might want to use `hosthog` infrastructure to notify other users.
-
-An admin wants to leave a message to notify users of a host about notable nixos config changes. 
-
-### Architcture
-
-- Per-host daemon/service
-  - DB with reservations for localhost
-  - updates message of the day with reservations for localhost for today
-  - posts updates via wall to logged in users
-  - syncs reservations with a (~google~ nextcloud, see "Why no google sheets" section) calendar
-- User cli client
-  - used to add/change/view localhost reservations
-- optional: State server
-  - global reservation DB for cluster usage statistics
-  - is notified by host daemons about changes
-  - exposes reservations via website (calendar?)
-  - (pushes reservation events to client daemons)
-- optional: google calendar being filled with events by host daemons
+- `claim` hosthog maintains a list of claims which time out. You need an exclusive claim to hog the system.
+- `hog`: prevent things from happening that are not related to you
+  - Clears all AuthorizedKeysFiles via bind-mounting overlay files. Locked out users receive a hosthog message when they attempt to connect via ssh.
+  - Stops all systemd.timers.
+- `release` releases exclusive claims and reverts `hog`
+- `users` lists active users via `who`, and ssh sessions with `netstat`
+- `post` sends a message via `wall`
+- `status` lists claims
 
 
-### Implementation
+## Installation
 
-Push notifications in console: 
+Optional, but recommended dependencies: `at` (needed to remove claims on timeout)
 
-- pseudo terminals: sudo wall
-- tmux sessions: tmux display-popup  
-  ```
-  # for each user:
-  tmux lsc
-  tmux display-popup -c /dev/pts/0 "echo message && read"
-  ```
-- screen: receives walls
-- xrdp: ?
-- vscode remote plugin: ?
+User-local installation via cargo: `cargo install --path .`
 
-Message of the day:
-
-is not displayed in tmux
-
-
-#### google sheets/calendar?
-
-Google api client: either rust impls (see Cargo.toml) or some cli tool like [gcalcli](https://github.com/insanum/gcalcli).
-
-Google docs APIs are built for GUI applications instead of for server daemons. 
-It wants to authenticate humans and not machines. 
-That means authentication may last an arbitrarily short time and relies on browser interaction.
-Therefore, it is badly suited for a tool that should be easy to use from the commandline without additional setup (after an admin has set it up). 
-
-Google: Learn about authentication & authorization: [Auth Overivew](https://developers.google.com/workspace/guides/auth-overview)
-
-> Go through the described steps to obtain an API key and enable the Sheets API for your account:
-> 
-> https://developers.google.com/workspace/guides/create-project
-
-Or is it badly suited?
-
-There are google service accounts however that can be created in your google cloud project -> IAM -> Service-accounts.
-These can be used for bot login.
-
-That gives you a credentials.json that the official libraries know how to use https://developers.google.com/sheets/api/quickstart/python
-
-And then use it with https://crates.io/crates/google-authz
-
-#### Notes
-
-notifications in x:
-
-`DBUS_SESSION_BUS_ADDRESS=/run/user/1000/bus notify-send 'test message'`
-
-https://discourse.nixos.org/t/desktop-notifications-from-systemd-service/17672/6
+Or run it from within a nix shell: `nix shell github:pogobanane/hosthog#default` (timeouts won't work)
