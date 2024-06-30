@@ -225,6 +225,9 @@ fn main() {
 
     let _original_state = diskstate::load();
     let mut state = diskstate::load();
+    if let Err(e) = diskstate::check_version(&state) {
+        panic!("{}", e);
+    }
 
     match cli.command {
         Some(Commands::Status { status }) if !status.verbose => {

@@ -5,6 +5,8 @@ use crate::util;
 use once_cell::sync::Lazy;
 
 static STATE_FILE: Lazy<String> = Lazy::new(|| format!("{}/hosthog.json", util::STATE_PATH));
+const SUPPORTED_STATE_VERSIONS: [u32; 1] = [ 1 ];
+const DEFAULT_STATE_VERSION: u32 = 1;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Claim {
@@ -35,6 +37,16 @@ pub struct DiskState {
     /// settings to be modified by users
     pub settings: Settings,
     pub disabled_systemd_timers: Vec<String>,
+    pub state_version: u32,
+}
+
+pub fn check_version(state: &DiskState) -> Result<(), String> {
+    if SUPPORTED_STATE_VERSIONS.iter().any(|v| *v == state.state_version) {
+        Ok(())
+    } else {
+        let str = format!("Statefile is of version {}. Supported versions: {:?}. ({})", state.state_version, SUPPORTED_STATE_VERSIONS, STATE_FILE.as_str());
+        Err(str.to_string())
+    }
 }
 
 pub fn load() -> DiskState {
@@ -73,6 +85,7 @@ pub fn load_default() -> DiskState {
             ],
         },
         disabled_systemd_timers: vec![],
+        state_version: DEFAULT_STATE_VERSION,
     };
 
     return state;
