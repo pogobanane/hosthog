@@ -23,7 +23,7 @@
 
   outputs = { self, nixpkgs, flake-parts, fenix, ... } @ inputs: 
   (flake-parts.lib.evalFlakeModule
-  { inherit self; }
+  { inherit inputs; }
   {
     systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin"];
     imports = [
