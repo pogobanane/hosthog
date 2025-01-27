@@ -36,6 +36,7 @@ pub fn do_list_users() {
                 _ => (),
             }
         }
+        // maybe also list xrdp (port 3389?) sudo netstat -a -p
     }
 
     // println!("SSH sessions B:");

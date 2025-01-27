@@ -22,9 +22,10 @@ struct Unit {
 async fn list_timers<'a>(
     manager: &zbus_systemd::systemd1::ManagerProxy<'a>,
     states: Vec<String>,
+    match_globs: Vec<String>,
 ) -> Vec<Unit> {
     let units = manager
-        .list_units_by_patterns(states, vec!["*.timer".to_string()])
+        .list_units_by_patterns(states, match_globs)
         .await
         .expect("Can't list systemd units");
     // convert unit tuple to struct
@@ -85,11 +86,14 @@ async fn disable_timers(state: &mut diskstate::DiskState) -> ExResult<()> {
         .expect("Can't get systemd manager");
 
     // list units
-    let patterns = vec![
+    let states = vec![
         "active".to_string(),
         // "inactive".to_string()
     ];
-    let units = list_timers(&manager, patterns).await;
+    let names = vec!["*.timer".to_string()];
+    let mut units = list_timers(&manager, states.clone(), names.clone()).await;
+    let names = vec!["xrdp.service".to_string()];
+    units.append(&mut list_timers(&manager, states, names).await);
 
     for unit in units {
         disable_timer(state, &manager, &unit).await;
