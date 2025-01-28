@@ -1,6 +1,9 @@
 use crate::diskstate;
 use zbus_systemd::{zbus, zvariant::OwnedObjectPath};
 
+const DISABLE_TIMERS: bool = true;
+const DISABLE_UNITS: &[&str] = &["foo"];
+
 type ExResult<T> = Result<T, Box<dyn std::error::Error + 'static>>;
 
 /// Layout defined by https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.systemd1.html
@@ -90,10 +93,15 @@ async fn disable_units(state: &mut diskstate::DiskState) -> ExResult<()> {
         "active".to_string(),
         // "inactive".to_string()
     ];
-    let names = vec!["*.timer".to_string()];
-    let mut units = list_units(&manager, states.clone(), names.clone()).await;
-    let names = vec!["xrdp.service".to_string()];
-    units.append(&mut list_units(&manager, states, names).await);
+    let mut units = vec![];
+    if DISABLE_TIMERS {
+        let names = vec!["*.timer".to_string()];
+        units.append(&mut list_units(&manager, states.clone(), names.clone()).await);
+    }
+    for unit in DISABLE_UNITS {
+        let names = vec![unit.to_string()];
+        units.append(&mut list_units(&manager, states.clone(), names).await);
+    }
 
     for unit in units {
         disable_unit(state, &manager, &unit).await;
