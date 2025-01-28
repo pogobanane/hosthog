@@ -1,6 +1,6 @@
 use nix;
 use crate::diskstate;
-use crate::systemd_timers;
+use crate::systemd_units;
 use crate::users;
 use once_cell::sync::Lazy;
 use crate::util;
@@ -144,7 +144,7 @@ pub fn do_hog(mut users: Vec<String>, state: &mut diskstate::DiskState) {
     state.hogger = Some(claim);
 
     // run other modeules
-    systemd_timers::disable_resource(state);
+    systemd_units::disable_resource(state);
 
     // let mut command = vec![String::from("pkill"), String::from("-u")];
     // command.extend(users);
@@ -189,7 +189,7 @@ pub fn do_release(state: &mut diskstate::DiskState) {
     }
 
     // run other modeules
-    systemd_timers::enable_resource(state);
+    systemd_units::enable_resource(state);
 
 }
 

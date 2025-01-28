@@ -19,7 +19,7 @@ struct Unit {
     job_path: OwnedObjectPath,
 }
 
-async fn list_timers<'a>(
+async fn list_units<'a>(
     manager: &zbus_systemd::systemd1::ManagerProxy<'a>,
     states: Vec<String>,
     match_globs: Vec<String>,
@@ -60,9 +60,9 @@ async fn list_timers<'a>(
 }
 
 pub fn disable_resource(state: &mut diskstate::DiskState) {
-    println!("systemd_timers: disable timers");
+    println!("systemd_units: disable systemd services");
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let ret = rt.block_on(disable_timers(state));
+    let ret = rt.block_on(disable_units(state));
     if let Err(e) = ret {
         eprintln!("Error: {}", e);
         std::process::exit(1);
@@ -70,16 +70,16 @@ pub fn disable_resource(state: &mut diskstate::DiskState) {
 }
 
 pub fn enable_resource(state: &mut diskstate::DiskState) {
-    println!("systemd_timers: enable timers");
+    println!("systemd_units: enable systemd services");
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let ret = rt.block_on(enable_timers(state));
+    let ret = rt.block_on(enable_units(state));
     if let Err(e) = ret {
         eprintln!("Error: {}", e);
         std::process::exit(1);
     }
 }
 
-async fn disable_timers(state: &mut diskstate::DiskState) -> ExResult<()> {
+async fn disable_units(state: &mut diskstate::DiskState) -> ExResult<()> {
     let conn = zbus::Connection::system().await.expect("Can't connect");
     let manager = zbus_systemd::systemd1::ManagerProxy::new(&conn)
         .await
@@ -91,12 +91,12 @@ async fn disable_timers(state: &mut diskstate::DiskState) -> ExResult<()> {
         // "inactive".to_string()
     ];
     let names = vec!["*.timer".to_string()];
-    let mut units = list_timers(&manager, states.clone(), names.clone()).await;
+    let mut units = list_units(&manager, states.clone(), names.clone()).await;
     let names = vec!["xrdp.service".to_string()];
-    units.append(&mut list_timers(&manager, states, names).await);
+    units.append(&mut list_units(&manager, states, names).await);
 
     for unit in units {
-        disable_timer(state, &manager, &unit).await;
+        disable_unit(state, &manager, &unit).await;
         // println!(" - {} ({})", unit.name, unit.active_state);
 
         // // print timer details
@@ -113,7 +113,7 @@ async fn disable_timers(state: &mut diskstate::DiskState) -> ExResult<()> {
     return Ok(());
 }
 
-async fn disable_timer<'a>(
+async fn disable_unit<'a>(
     state: &mut diskstate::DiskState,
     manager: &zbus_systemd::systemd1::ManagerProxy<'a>,
     unit: &Unit,
@@ -133,24 +133,24 @@ async fn disable_timer<'a>(
             );
         }
         Err(e) => {
-            panic!("Can't start timer unit: {}", e);
+            panic!("Can't start systemd unit: {}", e);
         }
         Ok(_) => {
-            if !state.disabled_systemd_timers.contains(&unit.name) {
-                state.disabled_systemd_timers.push(unit.name.clone());
+            if !state.disabled_systemd_units.contains(&unit.name) {
+                state.disabled_systemd_units.push(unit.name.clone());
             }
         }
     };
 }
 
-async fn enable_timers(state: &mut diskstate::DiskState) -> ExResult<()> {
+async fn enable_units(state: &mut diskstate::DiskState) -> ExResult<()> {
     let conn = zbus::Connection::system().await.expect("Can't connect");
     let manager = zbus_systemd::systemd1::ManagerProxy::new(&conn)
         .await
         .expect("Can't get systemd manager");
 
     let disabled_timers_copy: Vec<String> = state
-        .disabled_systemd_timers
+        .disabled_systemd_units
         .iter()
         .map(|t| t.clone())
         .collect();
@@ -170,7 +170,7 @@ async fn enable_timers(state: &mut diskstate::DiskState) -> ExResult<()> {
                 );
             }
             Err(e) => {
-                panic!("Can't start timer unit: {}", e);
+                panic!("Can't start systemd unit: {}", e);
             }
             Ok(_) => {
                 // let foo = state.disabled_systemd_timers.iter().filter_map(|t| {
@@ -181,7 +181,7 @@ async fn enable_timers(state: &mut diskstate::DiskState) -> ExResult<()> {
                 //     }
                 // }).collect();
                 // state.disabled_systemd_timers = foo;
-                state.disabled_systemd_timers.retain(|t| *t != timer_name);
+                state.disabled_systemd_units.retain(|t| *t != timer_name);
             }
         };
     }
