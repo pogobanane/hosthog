@@ -5,8 +5,8 @@ use crate::util;
 use once_cell::sync::Lazy;
 
 static STATE_FILE: Lazy<String> = Lazy::new(|| format!("{}/hosthog.json", util::STATE_PATH));
-const SUPPORTED_STATE_VERSIONS: [u32; 1] = [ 1 ];
-const DEFAULT_STATE_VERSION: u32 = 1;
+const SUPPORTED_STATE_VERSIONS: [u32; 1] = [ 2 ];
+const DEFAULT_STATE_VERSION: u32 = 2;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Claim {
