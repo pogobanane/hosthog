@@ -2,7 +2,7 @@ use crate::diskstate;
 use zbus_systemd::{zbus, zvariant::OwnedObjectPath};
 
 const DISABLE_TIMERS: bool = true;
-const DISABLE_UNITS: &[&str] = &["foo"];
+const DISABLE_UNITS: &[&str] = &["xrdp.service"];
 
 type ExResult<T> = Result<T, Box<dyn std::error::Error + 'static>>;
 
