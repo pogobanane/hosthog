@@ -1,6 +1,11 @@
 use netstat::*;
+use crate::util;
 
 pub fn do_list_users() {
+
+    //
+    // Logged in users (who)
+    //
     println!("User sessions:");
     let who = std::process::Command::new("who")
         .output()
@@ -8,6 +13,28 @@ pub fn do_list_users() {
     println!("{}", String::from_utf8_lossy(&who.stdout));
     println!("");
 
+    //
+    // Desktop sessions (xrdp?)
+    //
+    println!("Desktop sessions (rdp?):");
+    let xorg_processes = pgrep("Xorg");
+    for (pid, _cmdline) in xorg_processes {
+        let uid = std::fs::read_to_string(format!("/proc/{}/loginuid", pid)).unwrap();
+        let uid = match uid.trim().parse::<u32>() {
+            Ok(uid) => { uid },
+            Err(_) => {
+                eprintln!("Could not parse uid {} of pid {}", uid, pid);
+                continue;
+            }
+        };
+        let username = util::get_username(uid);
+        println!("{} ({})", username, pid);
+    }
+    println!("");
+
+    //
+    // SSH sessions (netstat)
+    //
     if !is_root() {
         println!("Skipping ssh sessions (you are not root)");
     } else {
@@ -46,7 +73,7 @@ pub fn do_list_users() {
     // }
 }
 
-fn _pgrep(pattern: &str) -> Vec<(u32, String)> {
+fn pgrep(pattern: &str) -> Vec<(u32, String)> {
     let mut procs = vec![];
     for pid in _list_all_pids() {
         let cmdline = std::fs::read_to_string(format!("/proc/{}/cmdline", pid)).unwrap();
