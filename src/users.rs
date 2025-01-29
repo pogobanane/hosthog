@@ -75,8 +75,11 @@ pub fn do_list_users() {
 
 fn pgrep(pattern: &str) -> Vec<(u32, String)> {
     let mut procs = vec![];
-    for pid in _list_all_pids() {
-        let cmdline = std::fs::read_to_string(format!("/proc/{}/cmdline", pid)).unwrap();
+    for pid in list_all_pids() {
+        let cmdline = match std::fs::read_to_string(format!("/proc/{}/cmdline", pid)) {
+            Ok(cmdline) => cmdline,
+            Err(_) => continue, // process disappeared in the meantime
+        };
         if cmdline.contains(pattern) {
             procs.push((pid, cmdline));
         }
@@ -84,7 +87,7 @@ fn pgrep(pattern: &str) -> Vec<(u32, String)> {
     return procs;
 }
 
-fn _list_all_pids() -> Vec<u32> {
+fn list_all_pids() -> Vec<u32> {
     let mut pids = vec![];
     for entry in std::fs::read_dir("/proc").unwrap() {
         let entry = entry.unwrap();
