@@ -67,3 +67,13 @@ pub fn format_timeout(duration: chrono::Duration) -> String {
     unreachable!();
 }
 
+pub fn get_username(uid: u32) -> String {
+    let passwd = unsafe { libc::getpwuid(uid) };
+    if passwd.is_null() {
+        return "<unknown>".to_string();
+    }
+    let passwd = unsafe { &*passwd };
+    let name = unsafe { std::ffi::CStr::from_ptr(passwd.pw_name) };
+    return name.to_str().unwrap().to_string();
+}
+

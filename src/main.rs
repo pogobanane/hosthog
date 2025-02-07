@@ -7,7 +7,7 @@ mod diskstate;
 mod users;
 mod claims;
 mod util;
-mod systemd_timers;
+mod systemd_units;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -255,10 +255,10 @@ fn main() {
             users::do_list_users();
         },
         Some(Commands::Disable{ resource: Resource::SystemdTimers {}}) => {
-            systemd_timers::disable_resource(&mut state);
+            systemd_units::disable_resource(&mut state);
         },
         Some(Commands::Enable{ resource: Resource::SystemdTimers {}}) => {
-            systemd_timers::enable_resource(&mut state);
+            systemd_units::enable_resource(&mut state);
         },
         Some(Commands::Maintenance { }) => {
             do_maintenance(&mut state);

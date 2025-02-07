@@ -1,6 +1,11 @@
 use netstat::*;
+use crate::util;
 
 pub fn do_list_users() {
+
+    //
+    // Logged in users (who)
+    //
     println!("User sessions:");
     let who = std::process::Command::new("who")
         .output()
@@ -8,6 +13,28 @@ pub fn do_list_users() {
     println!("{}", String::from_utf8_lossy(&who.stdout));
     println!("");
 
+    //
+    // Desktop sessions (xrdp?)
+    //
+    println!("Desktop sessions (rdp?):");
+    let xorg_processes = pgrep("Xorg");
+    for (pid, _cmdline) in xorg_processes {
+        let uid = std::fs::read_to_string(format!("/proc/{}/loginuid", pid)).unwrap();
+        let uid = match uid.trim().parse::<u32>() {
+            Ok(uid) => { uid },
+            Err(_) => {
+                eprintln!("Could not parse uid {} of pid {}", uid, pid);
+                continue;
+            }
+        };
+        let username = util::get_username(uid);
+        println!("{} ({})", username, pid);
+    }
+    println!("");
+
+    //
+    // SSH sessions (netstat)
+    //
     if !is_root() {
         println!("Skipping ssh sessions (you are not root)");
     } else {
@@ -36,6 +63,7 @@ pub fn do_list_users() {
                 _ => (),
             }
         }
+        // maybe also list xrdp (port 3389?) sudo netstat -a -p
     }
 
     // println!("SSH sessions B:");
@@ -45,10 +73,13 @@ pub fn do_list_users() {
     // }
 }
 
-fn _pgrep(pattern: &str) -> Vec<(u32, String)> {
+fn pgrep(pattern: &str) -> Vec<(u32, String)> {
     let mut procs = vec![];
-    for pid in _list_all_pids() {
-        let cmdline = std::fs::read_to_string(format!("/proc/{}/cmdline", pid)).unwrap();
+    for pid in list_all_pids() {
+        let cmdline = match std::fs::read_to_string(format!("/proc/{}/cmdline", pid)) {
+            Ok(cmdline) => cmdline,
+            Err(_) => continue, // process disappeared in the meantime
+        };
         if cmdline.contains(pattern) {
             procs.push((pid, cmdline));
         }
@@ -56,7 +87,7 @@ fn _pgrep(pattern: &str) -> Vec<(u32, String)> {
     return procs;
 }
 
-fn _list_all_pids() -> Vec<u32> {
+fn list_all_pids() -> Vec<u32> {
     let mut pids = vec![];
     for entry in std::fs::read_dir("/proc").unwrap() {
         let entry = entry.unwrap();
